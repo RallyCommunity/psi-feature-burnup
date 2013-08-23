@@ -177,7 +177,7 @@ Ext.define('CustomApp', {
                 zoomType: 'xy'
             },
             title: {
-                text: 'Cumulative Flow Diagram'
+                text: 'Feature Burnup'
             },
             xAxis: {
                 tickmarkPlacement: 'on',
