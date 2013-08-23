@@ -22,18 +22,40 @@ Ext.define("MyBurnCalculator", {
                as: "Accepted Points",
                display: "line",
                f: "sum"
-           }
+           },
+            {
+               field: "ObjectID",
+               as: "Count",
+               display: "column",
+               f: "count"
+            },
+            {
+               field: "Completed",
+               as: "Completed",
+               display: "column",
+               f: "sum"
+            }
+
+
        ];
     },
     getDerivedFieldsOnInput : function () { 
         // XS 1, S 3, M 5, L 8, XL 13
-        return [ {
-            as: 'CalcPreliminaryEstimate', 
-            f:  function(row) {
-                var r = _.find(peRecords, function(rec) { return rec.get("ObjectID") == row["PreliminaryEstimate"] });
-                return r != undefined ? r.get("Value") : 0;    
+        return [ 
+            {
+                as: 'CalcPreliminaryEstimate', 
+                f:  function(row) {
+                    var r = _.find(peRecords, function(rec) { return rec.get("ObjectID") == row["PreliminaryEstimate"] });
+                    return r != undefined ? r.get("Value") : 0;    
+                }
+            },
+            {
+                as: 'Completed', 
+                f:  function(row) {
+                return row['PercentDoneByStoryCount'] == 1 ? 1 : 0;
+                }
             }
-        } ];
+        ];
     },
    defined : function(v) {
         return (!_.isUndefined(v) && !_.isNull(v));            
@@ -164,7 +186,7 @@ Ext.define('CustomApp', {
             },
             autoLoad : true,
             limit: Infinity,
-            fetch: ['ObjectID','Name', '_TypeHierarchy','PreliminaryEstimate', 'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal'],
+            fetch: ['ObjectID','Name', '_TypeHierarchy','PreliminaryEstimate', 'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount'],
             hydrate: ['_TypeHierarchy','PreliminaryEstimate']
 		},
         calculatorType: 'MyBurnCalculator',
