@@ -9,19 +9,19 @@ Ext.define("MyBurnCalculator", {
                field: "LeafStoryPlanEstimateTotal",
                as: "Planned Points",
                display: "line",
-               f: "sum"
+               f: "sum",
            },
            {
                field: "CalcPreliminaryEstimate",
                as: "PreliminaryEstimate",
                display: "line",
-               f: "sum"
+               f: "sum",
            },
            {
                field: "AcceptedLeafStoryPlanEstimateTotal",
                as: "Accepted Points",
                display: "line",
-               f: "sum"
+               f: "sum",
            },
             {
                field: "ObjectID",
@@ -72,6 +72,7 @@ Ext.define('CustomApp', {
 
     launch: function() {
         console.log("launch");
+
         var timeboxScope = this.getContext().getTimeboxScope();
         var tbName = null;
         if(timeboxScope) {
@@ -90,8 +91,6 @@ Ext.define('CustomApp', {
                 scope : this,
                 load: function(store, data) {       
                     peRecords = data;
-                    console.log(peRecords);
-                    this.peRecords = peRecords;
                     this.queryReleases(tbName);
                 }
             }
@@ -104,50 +103,48 @@ Ext.define('CustomApp', {
         return releaseStore = Ext.create('Rally.data.WsapiDataStore', {
         autoLoad: true,
         model: 'Release',
-        fetch: ['Name', 'ObjectID', 'Project'],
+        fetch: ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ],
         filters: [],
         listeners: {
         load: function(store, releaseRecords) {
-              
-        var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID")};});
-        releases = _.uniq( releases, function (r) { return r.name; });
-        var releasesStore = Ext.create('Ext.data.Store', {
-            fields: ['name','objectid'],
-            data : releases });
+            
+            // given a list of all releases (accross sub projects)
+            var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID")};});
+            
+            // get a unique list by name to display in combobox        
+            releases = _.uniq( releases, function (r) { return r.name; });
+            // create a store with the set of unique releases
+            var releasesStore = Ext.create('Ext.data.Store', {
+                fields: ['name','objectid'],data : releases 
+            });
           
+            // construct the combo box using the store
             var cb = Ext.create("Ext.ux.CheckCombo", {
-                fieldLabel: 'Choose Release',
+                fieldLabel: 'Release',
                 store: releasesStore,
                 queryMode: 'local',
                 displayField: 'name',
                 valueField: 'name',
                 noData : true,
+                width: 300,
                 
                 listeners : {
                     scope : this,
-                    select: function(combo, record, index) {
-                        //console.log(this.getValue());
-                    },
+                    // after collapsing the list
                     collapse : function ( field, eOpts ) {
-                        console.log(field.getValue());
-                        var releaseIDs = [];
+                        var releases = [];
+                        // for each selected release name, select all releases with that name and grap the object id and push it into an 
+                        // array. The result will be an array of all matching release that we will use to query for snapshots.
                         _.each( field.getValue().split(","), function (rn) {
                             _.each( _.filter( releaseRecords, function(r) { return rn == r.get("Name"); }),
-                                function(rel) { releaseIDs.push( rel.get("ObjectID"));}
+                                function(rel) { releases.push(rel); }
                             );
                         });
-                        console.log(releaseIDs);
-                        this.querySnapshots(releaseIDs);
+                        this.querySnapshots(releases);
                     }
                 }
             });
             this.add(cb);
-              
-            var releaseIDs = _.pluck(releaseRecords, function(rec) {return rec.get("ObjectID");});
-            console.log(releaseIDs);
-            return _.each(releaseRecords, function(releaseRecord) {
-              return this.processRelease(releaseRecord);
-            }, this);
           },
           scope: this
         }
@@ -155,11 +152,20 @@ Ext.define('CustomApp', {
     
     },
     
-    querySnapshots : function(ids) {
+    querySnapshots : function(releases) {
         
-        //this.chartConfig.storeConfig.find['_TypeHierarchy'] = { "$in" : "PortfolioItem/Feature" };
-        this.chartConfig.storeConfig.find['Release']        = { "$in": ids };
+        var ids = _.pluck(releases, function(release) { return release.get("ObjectID");} );
+        this.chartConfig.storeConfig.find['Release'] = { "$in": ids };
+
+        var start = _.min(_.pluck(releases,function(r) { return r.get("ReleaseStartDate");}));
+        var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
         
+        console.log("start",start);
+        console.log("end"  ,end);
+        
+        this.chartConfig.calculatorConfig.startDate = start;
+        this.chartConfig.calculatorConfig.endDate = end;
+
         var chart = this.down("#myChart");
         if (chart!=null) {
             this.remove(chart); 
@@ -168,17 +174,10 @@ Ext.define('CustomApp', {
         
     },
     
-    releaseSnapShotData : function( data ) {
-        console.log("data",data);
-    },
-    
-    processRelease : function(rec) {
-        console.log(rec)
-    },
-    
     chartConfig: {
         xtype: 'rallychart',
         itemId : 'myChart',
+        chartColors: ['Gray', 'Orange', 'Green', '#3A874F'],
 
         storeConfig: {
             find : {
@@ -189,21 +188,31 @@ Ext.define('CustomApp', {
             fetch: ['ObjectID','Name', '_TypeHierarchy','PreliminaryEstimate', 'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount'],
             hydrate: ['_TypeHierarchy','PreliminaryEstimate']
 		},
+        
         calculatorType: 'MyBurnCalculator',
+        
         calculatorConfig: {
-            preliminaryEstimates : this.peRecords
         },
 
         chartConfig: {
+            
+            colors : [],
+            
             chart: {
+                colors : [],
                 zoomType: 'xy'
             },
             title: {
                 text: 'Feature Burnup'
             },
             xAxis: {
-                tickmarkPlacement: 'on',
-                tickInterval: 20,
+                tickInterval: 7,
+                labels: {
+                    formatter: function() {
+                        var d = new Date(this.value);
+                        return ""+(d.getMonth()+1)+"/"+d.getDate();
+                    }
+                },
                 title: {
                     text: 'Days'
                 }
@@ -216,6 +225,7 @@ Ext.define('CustomApp', {
                 }
             ],
             plotOptions: {
+                line : {lineWidth : 1},
                 series: {
                     marker: {
                         enabled: true
