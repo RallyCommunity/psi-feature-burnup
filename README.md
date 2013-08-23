@@ -1,4 +1,9 @@
 psi-feature-burnup
-==================
+=========================
 
-A Burnup chart for Features scoped to one or more PSI
+## Overview
+
+
+## License
+
+AppTemplate is released under the MIT license.  See the file [LICENSE](https://raw.github.com/RallyApps/AppTemplate/master/LICENSE) for the full text.
