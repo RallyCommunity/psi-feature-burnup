@@ -5,7 +5,8 @@
    "sdk": "2.0rc1",
    "javascript": [
       "App.js",
-      "combo.js"
+      "combo.js",
+      "line-fitter.js"
    ],
    "css": [
       "app.css"

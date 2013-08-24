@@ -1,10 +1,11 @@
 var peRecords = [];
+var acceptedData = [];
 
 Ext.define("MyBurnCalculator", {
    extend: "Rally.data.lookback.calculator.TimeSeriesCalculator",
    
     getMetrics: function () {
-       return [
+        var metrics = [
            {
                field: "LeafStoryPlanEstimateTotal",
                as: "Planned Points",
@@ -35,9 +36,8 @@ Ext.define("MyBurnCalculator", {
                display: "column",
                f: "sum"
             }
-
-
        ];
+        return metrics;
     },
     getDerivedFieldsOnInput : function () { 
         // XS 1, S 3, M 5, L 8, XL 13
@@ -55,6 +55,26 @@ Ext.define("MyBurnCalculator", {
                 return row['PercentDoneByStoryCount'] == 1 ? 1 : 0;
                 }
             }
+        ];
+    },
+    getDerivedFieldsAfterSummary : function () {
+        return [
+            {as: 'Projection', 
+            f: function (row, index, summaryMetrics, seriesData) {
+                if (index == 0) {
+                    //console.log(seriesData);
+                    datesData = _.pluck(seriesData,"label");
+                    acceptedData = _.pluck(seriesData,"Accepted Points");
+                    console.log("accepted date len",acceptedData.length);
+                    var today = new Date();
+                    acceptedData = _.filter(acceptedData, function(d,i){ return new Date(Date.parse(datesData[i])) < today;   });
+                    console.log("accepted date len",acceptedData.length);
+                    //console.log(acceptedData);
+                }
+                var y = linearProject( acceptedData, index);
+                return y;
+            }
+          } 
         ];
     },
    defined : function(v) {
@@ -170,6 +190,7 @@ Ext.define('CustomApp', {
         if (chart!=null) {
             this.remove(chart); 
         }
+        console.log(this.chartConfig);
         this.add(this.chartConfig);
         
     },
@@ -177,8 +198,8 @@ Ext.define('CustomApp', {
     chartConfig: {
         xtype: 'rallychart',
         itemId : 'myChart',
-        chartColors: ['Gray', 'Orange', 'Green', '#3A874F'],
-
+        chartColors: ['Gray', 'Orange', 'Green', 'Blue','Green','LightGray'],
+        
         storeConfig: {
             find : {
                 '_TypeHierarchy' : { "$in" : ["PortfolioItem/Feature"] }
@@ -195,9 +216,16 @@ Ext.define('CustomApp', {
         },
 
         chartConfig: {
-            
-            colors : [],
-            
+
+        plotOptions: {
+            series: {
+                marker: {
+                    radius: 2
+                }
+            }
+        },
+
+
             chart: {
                 colors : [],
                 zoomType: 'xy'
@@ -223,17 +251,10 @@ Ext.define('CustomApp', {
                         text: 'Points'
                     }
                 }
-            ],
-            plotOptions: {
-                line : {lineWidth : 1},
-                series: {
-                    marker: {
-                        enabled: true
-                    }
-                },
-            }
+            ]
         }
     }
+
     
     
 });
