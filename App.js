@@ -132,7 +132,7 @@ Ext.define('CustomApp', {
             var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID"), releaseDate : new Date(Date.parse(rec.get("ReleaseDate")))};});
             
             releases = _.sortBy( releases, function(rec) {return rec.releaseDate;}).reverse();
-            console.log("releases:",releases);
+            //console.log("releases:",releases);
             
             // get a unique list by name to display in combobox        
             releases = _.uniq( releases, function (r) { return r.name; });
