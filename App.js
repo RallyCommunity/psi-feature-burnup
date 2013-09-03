@@ -68,11 +68,10 @@ Ext.define("MyBurnCalculator", {
                     console.log("accepted date len",acceptedData.length);
                     var today = new Date();
                     acceptedData = _.filter(acceptedData, function(d,i){ return new Date(Date.parse(datesData[i])) < today;   });
-                    console.log("accepted date len",acceptedData.length);
                     //console.log(acceptedData);
                 }
                 var y = linearProject( acceptedData, index);
-                return y;
+                return Math.round(y * 100) / 100;
             }
           } 
         ];
@@ -123,13 +122,17 @@ Ext.define('CustomApp', {
         return releaseStore = Ext.create('Rally.data.WsapiDataStore', {
         autoLoad: true,
         model: 'Release',
+        limit : 'Infinity',
         fetch: ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ],
         filters: [],
         listeners: {
         load: function(store, releaseRecords) {
-            
+
             // given a list of all releases (accross sub projects)
-            var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID")};});
+            var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID"), releaseDate : new Date(Date.parse(rec.get("ReleaseDate")))};});
+            
+            releases = _.sortBy( releases, function(rec) {return rec.releaseDate;}).reverse();
+            console.log("releases:",releases);
             
             // get a unique list by name to display in combobox        
             releases = _.uniq( releases, function (r) { return r.name; });
