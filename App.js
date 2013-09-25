@@ -10,19 +10,19 @@ Ext.define("MyBurnCalculator", {
                field: "LeafStoryPlanEstimateTotal",
                as: "Planned Points",
                display: "line",
-               f: "sum",
+               f: "sum"
            },
            {
                field: "CalcPreliminaryEstimate",
                as: "PreliminaryEstimate",
                display: "line",
-               f: "sum",
+               f: "sum"
            },
            {
                field: "AcceptedLeafStoryPlanEstimateTotal",
                as: "Accepted Points",
                display: "line",
-               f: "sum",
+               f: "sum"
            },
             {
                field: "ObjectID",
@@ -45,14 +45,14 @@ Ext.define("MyBurnCalculator", {
             {
                 as: 'CalcPreliminaryEstimate', 
                 f:  function(row) {
-                    var r = _.find(peRecords, function(rec) { return rec.get("ObjectID") == row["PreliminaryEstimate"] });
-                    return r != undefined ? r.get("Value") : 0;    
+                    var r = _.find(peRecords, function(rec) { return rec.get("ObjectID") == row.PreliminaryEstimate; });
+                    return r !== undefined ? r.get("Value") : 0;    
                 }
             },
             {
                 as: 'Completed', 
                 f:  function(row) {
-                return row['PercentDoneByStoryCount'] == 1 ? 1 : 0;
+                return row.PercentDoneByStoryCount == 1 ? 1 : 0;
                 }
             }
         ];
@@ -61,14 +61,11 @@ Ext.define("MyBurnCalculator", {
         return [
             {as: 'Projection', 
             f: function (row, index, summaryMetrics, seriesData) {
-                if (index == 0) {
-                    //console.log(seriesData);
+                if (index === 0) {
                     datesData = _.pluck(seriesData,"label");
                     acceptedData = _.pluck(seriesData,"Accepted Points");
-                    console.log("accepted date len",acceptedData.length);
                     var today = new Date();
                     acceptedData = _.filter(acceptedData, function(d,i){ return new Date(Date.parse(datesData[i])) < today;   });
-                    //console.log(acceptedData);
                 }
                 var y = linearProject( acceptedData, index);
                 return Math.round(y * 100) / 100;
@@ -92,6 +89,8 @@ Ext.define('CustomApp', {
     launch: function() {
         console.log("launch");
 
+        this.project = this.getContext().getProject().ObjectID;
+
         var timeboxScope = this.getContext().getTimeboxScope();
         var tbName = null;
         if(timeboxScope) {
@@ -100,7 +99,7 @@ Ext.define('CustomApp', {
         } else {
             tbName = "";
         }
-        
+
         var peStore = Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
             model: 'PreliminaryEstimate',
@@ -118,11 +117,10 @@ Ext.define('CustomApp', {
     
     queryReleases : function(name) {
     
-        var releaseStore;
-        return releaseStore = Ext.create('Rally.data.WsapiDataStore', {
+        return Ext.create('Rally.data.WsapiDataStore', {
         autoLoad: true,
         model: 'Release',
-        limit : 'Infinity',
+        limit : '1000',
         fetch: ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ],
         filters: [],
         listeners: {
@@ -130,15 +128,12 @@ Ext.define('CustomApp', {
 
             // given a list of all releases (accross sub projects)
             var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID"), releaseDate : new Date(Date.parse(rec.get("ReleaseDate")))};});
-            
-            releases = _.sortBy( releases, function(rec) {return rec.releaseDate;}).reverse();
-            //console.log("releases:",releases);
-            
             // get a unique list by name to display in combobox        
             releases = _.uniq( releases, function (r) { return r.name; });
+            releases = _.sortBy( releases, function(rec) {return rec.releaseDate;}).reverse();
             // create a store with the set of unique releases
             var releasesStore = Ext.create('Ext.data.Store', {
-                fields: ['name','objectid'],data : releases 
+                fields: ['name','objectid'], data : releases 
             });
           
             // construct the combo box using the store
@@ -163,6 +158,7 @@ Ext.define('CustomApp', {
                                 function(rel) { releases.push(rel); }
                             );
                         });
+                        //console.log("Selected",releases);
                         this.querySnapshots(releases);
                     }
                 }
@@ -176,13 +172,66 @@ Ext.define('CustomApp', {
     },
     
     querySnapshots : function(releases) {
+        console.log(releases);
         
-        var ids = _.pluck(releases, function(release) { return release.get("ObjectID");} );
-        this.chartConfig.storeConfig.find['Release'] = { "$in": ids };
+        var that = this;
+        console.log("p", that.getContext().getProject().ObjectID);
+        var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', {
+            listeners: {
+                scope : this,
+                load: function(store, features, success) {
+                    console.log("features",features.length);
+                    this.createChart(features,releases);
+                },
+                prefetch : function( records, successful, operation, eOpts ) {
+                    console.log("prefect",records,successful,operation);
+                }
+            },
+            fetch: ['ObjectID','_TypeHierarchy'],
+            hydrate : ['_TypeHierarchy'],
+            autoLoad : true,
+            limit : 100,
+            
+            filters: [
+                {
+                    property : '_ProjectHierarchy',
+                    operator : 'in',
+                    value : that.getContext().getProject().ObjectID
+                },
+                {
+                    property: '__At',
+                    operator: '=',
+                    value: 'current'
+                },
+                {
+                    property  : 'Release',
+                    operator : 'in',
+                    value : _.pluck(releases, function(r) { return r.get("ObjectID"); } )
+                },
+                {
+                    property : '_TypeHierarchy',
+                    operator : 'in',
+                    value : ['PortfolioItem/Feature']
+                }
+            ]
+        });
 
+    },
+    
+    createChart : function (features,releases) {
+        console.log("project",this.project);        
+        var ids = _.pluck(features, function(feature) { return feature.get("ObjectID");} );
+        
         var start = _.min(_.pluck(releases,function(r) { return r.get("ReleaseStartDate");}));
         var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
         
+        var isoStart  = Rally.util.DateTime.toIsoString(start, false);
+        console.log("start",start,isoStart);
+
+        this.chartConfig.storeConfig.find['ObjectID'] = { "$in": ids };
+        this.chartConfig.storeConfig.find['_ProjectHierarchy'] = { "$in": this.project };
+        this.chartConfig.storeConfig.find['$or'] = [ {'__At' : 'current'},{ "_ValidTo" : { "$gte" : isoStart  }}];
+
         console.log("start",start);
         console.log("end"  ,end);
         
@@ -190,12 +239,11 @@ Ext.define('CustomApp', {
         this.chartConfig.calculatorConfig.endDate = end;
 
         var chart = this.down("#myChart");
-        if (chart!=null) {
-            this.remove(chart); 
+        if (chart!==null) {
+             this.remove(chart); 
         }
-        console.log(this.chartConfig);
         this.add(this.chartConfig);
-        
+
     },
     
     chartConfig: {
@@ -208,9 +256,10 @@ Ext.define('CustomApp', {
                 '_TypeHierarchy' : { "$in" : ["PortfolioItem/Feature"] }
             },
             autoLoad : true,
-            limit: Infinity,
-            fetch: ['ObjectID','Name', '_TypeHierarchy','PreliminaryEstimate', 'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount'],
-            hydrate: ['_TypeHierarchy','PreliminaryEstimate']
+            pagesize:1000,
+            limit: 'Infinity',
+            fetch: ['ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount'],
+            hydrate: ['_TypeHierarchy']
 		},
         
         calculatorType: 'MyBurnCalculator',
