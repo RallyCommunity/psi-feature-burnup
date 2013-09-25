@@ -74,7 +74,7 @@ Ext.define("MyBurnCalculator", {
                     datesData = _.pluck(seriesData,"label");
                     acceptedData = _.pluck(seriesData,"Accepted Points");
                     var today = new Date();
-                    acceptedData = _.filter(acceptedData, function(d,i){ return new Date(Date.parse(datesData[i])) < today;   });
+                    acceptedData = _.filter(acceptedData, function(d,i) { return new Date(Date.parse(datesData[i])) < today; });
                 }
                 var y = linearProject( acceptedData, index);
                 return Math.round(y * 100) / 100;
@@ -87,8 +87,6 @@ Ext.define("MyBurnCalculator", {
     }
    
 });
-
-
 
 Ext.define('CustomApp', {
     scopeType: 'release',
@@ -252,6 +250,7 @@ Ext.define('CustomApp', {
              this.remove(chart); 
         }
         this.add(this.chartConfig);
+        //var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', this.chartConfig.storeConfig);
 
     },
     
@@ -261,11 +260,17 @@ Ext.define('CustomApp', {
         chartColors: ['Gray', 'Orange', 'Green', 'Blue','Green','LightGray'],
         
         storeConfig: {
+            listeners: {
+                scope : this,
+                load: function(store, features, success) {
+                    console.log("2nd call features",features.length);
+                }
+            },
             find : {
                 '_TypeHierarchy' : { "$in" : ["PortfolioItem/Feature"] }
             },
             autoLoad : true,
-            pagesize:1000,
+            pageSize:1000,
             limit: 'Infinity',
             fetch: ['ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount'],
             hydrate: ['_TypeHierarchy']
@@ -274,19 +279,18 @@ Ext.define('CustomApp', {
         calculatorType: 'MyBurnCalculator',
         
         calculatorConfig: {
+            
         },
 
         chartConfig: {
 
-        plotOptions: {
-            series: {
-                marker: {
-                    radius: 2
+            plotOptions: {
+                series: {
+                    marker: {
+                        radius: 2
+                    }
                 }
-            }
-        },
-
-
+            },
             chart: {
                 colors : [],
                 zoomType: 'xy'
