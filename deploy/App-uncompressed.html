@@ -71,7 +71,7 @@ Ext.define("MyBurnCalculator", {
             {as: 'Projection', 
             f: function (row, index, summaryMetrics, seriesData) {
                 if (index === 0) {
-                    console.log("seriesDate",seriesData);
+                    console.log("seriesData",seriesData);
                     datesData = _.pluck(seriesData,"label");
                     acceptedData = _.pluck(seriesData,"Accepted Points");
                     var today = new Date();
