@@ -71,6 +71,7 @@ Ext.define("MyBurnCalculator", {
             {as: 'Projection', 
             f: function (row, index, summaryMetrics, seriesData) {
                 if (index === 0) {
+                    console.log("seriesDate",seriesData);
                     datesData = _.pluck(seriesData,"label");
                     acceptedData = _.pluck(seriesData,"Accepted Points");
                     var today = new Date();
@@ -237,7 +238,7 @@ Ext.define('CustomApp', {
 
         this.chartConfig.storeConfig.find['ObjectID'] = { "$in": ids };
         this.chartConfig.storeConfig.find['_ProjectHierarchy'] = { "$in": this.project };
-        this.chartConfig.storeConfig.find['$or'] = [ {'__At' : 'current'},{ "_ValidTo" : { "$gte" : isoStart  }}];
+        //this.chartConfig.storeConfig.find['$or'] = [ {'__At' : 'current'},{ "_ValidTo" : { "$gte" : isoStart  }}];
 
         console.log("start",start);
         console.log("end"  ,end);
