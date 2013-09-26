@@ -62,18 +62,10 @@ Ext.define("MyBurnCalculator", {
             {as: 'Projection', 
             f: function (row, index, summaryMetrics, seriesData) {
                 if (index === 0) {
-                    //console.log("seriesData",seriesData);
-                    // fix last day jump
-                    console.log("series",seriesData);
                     datesData = _.pluck(seriesData,"label");
                     var today = new Date();
                     var li = datesData.length-1;
-                    if ( new Date(Date.parse(datesData[li])) > today) {
-                        console.log("slicing");
-                        seriesData  = seriesData.slice(0,li-5);
-                    }
                     acceptedData = _.pluck(seriesData,"Accepted Points");
-                    
                     acceptedData = _.filter(acceptedData, function(d,i) { return new Date(Date.parse(datesData[i])) < today; });
                 }
                 var y = linearProject( acceptedData, index);
@@ -123,11 +115,13 @@ Ext.define('CustomApp', {
     },
     
     queryReleases : function(name) {
+        
+        console.log("Selected Releases:",name);
     
         return Ext.create('Rally.data.WsapiDataStore', {
         autoLoad: true,
         model: 'Release',
-        limit : '1000',
+        limit : 'Infinity',
         fetch: ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ],
         filters: [],
         listeners: {
@@ -165,8 +159,7 @@ Ext.define('CustomApp', {
                                 function(rel) { releases.push(rel); }
                             );
                         });
-                        //console.log("Selected",releases);
-                        this.querySnapshots(releases);
+                        this.queryFeatures(releases);
                     }
                 }
             });
@@ -178,50 +171,37 @@ Ext.define('CustomApp', {
     
     },
     
-    querySnapshots : function(releases) {
-        console.log(releases);
-        
+    queryFeatures : function(releases) {
+        // get Features for the selected release(s)
         var that = this;
-        console.log("p", that.getContext().getProject().ObjectID);
-        var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', {
-            listeners: {
-                scope : this,
-                load: function(store, features, success) {
-                    console.log("features",features.length);
-                    this.createChart(features,releases);
-                }
-            },
-            fetch: ['ObjectID','_TypeHierarchy'],
-            hydrate : ['_TypeHierarchy'],
-            autoLoad : true,
-            limit : 100,
-            
-            filters: [
-                {
-                    property : '_ProjectHierarchy',
-                    operator : 'in',
-                    value : that.getContext().getProject().ObjectID
-                },
-                {
-                    property: '__At',
-                    operator: '=',
-                    value: 'current'
-                },
-                {
-                    property  : 'Release',
-                    operator : 'in',
-                    value : _.pluck(releases, function(r) { return r.get("ObjectID"); } )
-                },
-                {
-                    property : '_TypeHierarchy',
-                    operator : 'in',
-                    value : ['PortfolioItem/Feature']
-                }
-            ]
-        });
+        var uniqReleases = _.uniq(releases,function(release) { return release.get("Name");});
+        var filter = null;
+        _.each(uniqReleases,function(release,i) {
+            var f = Ext.create('Rally.data.QueryFilter', {
+                property: 'Release.Name',
+                operator: '=',
+                value: release.get("Name")});
 
+            filter = i == 0 ? f : filter.or(f);
+        });
+        
+        console.log("filter:",filter.toString());
+
+        return Ext.create('Rally.data.WsapiDataStore', {
+            autoLoad: true,
+            model: 'PortfolioItem/Feature',
+            limit : 'Infinity',
+            fetch: ['ObjectID','FormattedID' ],
+            filters: [filter],
+            listeners: {
+                load: function(store, features) {
+                    console.log("# of features in chart:",features.length);
+                    that.createChart(features,uniqReleases);
+                }
+            }
+        });        
     },
-    
+
     createChart : function (features,releases) {
         console.log("project",this.project);        
         var ids = _.pluck(features, function(feature) { return feature.get("ObjectID");} );
@@ -230,18 +210,16 @@ Ext.define('CustomApp', {
         var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
         
         var isoStart  = Rally.util.DateTime.toIsoString(start, false);
-        console.log("start",start,isoStart);
+        console.log("start",start);
+        console.log("end"  ,end);
 
         this.chartConfig.storeConfig.find['ObjectID'] = { "$in": ids };
         this.chartConfig.storeConfig.find['_ProjectHierarchy'] = { "$in": this.project };
         //this.chartConfig.storeConfig.find['_ValidTo'] = { "$gte" : isoStart  };
         //this.chartConfig.storeConfig.find['$or'] = [ {'__At' : 'current'},{ "_ValidTo" : { "$gte" : isoStart  }}];
 
-        console.log("start",start);
-        console.log("end"  ,end);
-        
         this.chartConfig.calculatorConfig.startDate = start;
-        this.chartConfig.calculatorConfig.endDate = (end);
+        this.chartConfig.calculatorConfig.endDate = end;
 
         var chart = this.down("#myChart");
         if (chart!==null) {
