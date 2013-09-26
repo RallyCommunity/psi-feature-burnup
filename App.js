@@ -62,10 +62,18 @@ Ext.define("MyBurnCalculator", {
             {as: 'Projection', 
             f: function (row, index, summaryMetrics, seriesData) {
                 if (index === 0) {
-                    console.log("seriesData",seriesData);
+                    //console.log("seriesData",seriesData);
+                    // fix last day jump
+                    console.log("series",seriesData);
                     datesData = _.pluck(seriesData,"label");
-                    acceptedData = _.pluck(seriesData,"Accepted Points");
                     var today = new Date();
+                    var li = datesData.length-1;
+                    if ( new Date(Date.parse(datesData[li])) > today) {
+                        console.log("slicing");
+                        seriesData  = seriesData.slice(0,li-5);
+                    }
+                    acceptedData = _.pluck(seriesData,"Accepted Points");
+                    
                     acceptedData = _.filter(acceptedData, function(d,i) { return new Date(Date.parse(datesData[i])) < today; });
                 }
                 var y = linearProject( acceptedData, index);
@@ -181,9 +189,6 @@ Ext.define('CustomApp', {
                 load: function(store, features, success) {
                     console.log("features",features.length);
                     this.createChart(features,releases);
-                },
-                prefetch : function( records, successful, operation, eOpts ) {
-                    console.log("prefect",records,successful,operation);
                 }
             },
             fetch: ['ObjectID','_TypeHierarchy'],
@@ -229,13 +234,14 @@ Ext.define('CustomApp', {
 
         this.chartConfig.storeConfig.find['ObjectID'] = { "$in": ids };
         this.chartConfig.storeConfig.find['_ProjectHierarchy'] = { "$in": this.project };
+        //this.chartConfig.storeConfig.find['_ValidTo'] = { "$gte" : isoStart  };
         //this.chartConfig.storeConfig.find['$or'] = [ {'__At' : 'current'},{ "_ValidTo" : { "$gte" : isoStart  }}];
 
         console.log("start",start);
         console.log("end"  ,end);
         
         this.chartConfig.calculatorConfig.startDate = start;
-        this.chartConfig.calculatorConfig.endDate = end;
+        this.chartConfig.calculatorConfig.endDate = (end);
 
         var chart = this.down("#myChart");
         if (chart!==null) {
