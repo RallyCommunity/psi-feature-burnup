@@ -4,90 +4,13 @@
     <title>psi-feature-burnup</title>
 
     <script type="text/javascript" src="/apps/2.0rc1/sdk.js"></script>
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"></script>
 
     <script type="text/javascript">
         Rally.onReady(function () {
                 var peRecords = [];
 var acceptedData = [];
-
-Ext.define("MyBurnCalculator", {
-   extend: "Rally.data.lookback.calculator.TimeSeriesCalculator",
-   
-    getMetrics: function () {
-        var metrics = [
-           {
-               field: "LeafStoryPlanEstimateTotal",
-               as: "Planned Points",
-               display: "line",
-               f: "sum"
-           },
-           {
-               field: "CalcPreliminaryEstimate",
-               as: "PreliminaryEstimate",
-               display: "line",
-               f: "sum"
-           },
-           {
-               field: "AcceptedLeafStoryPlanEstimateTotal",
-               as: "Accepted Points",
-               display: "line",
-               f: "sum"
-           },
-            {
-               field: "ObjectID",
-               as: "Count",
-               display: "column",
-               f: "count"
-            },
-            {
-               field: "Completed",
-               as: "Completed",
-               display: "column",
-               f: "sum"
-            }
-       ];
-        return metrics;
-    },
-    getDerivedFieldsOnInput : function () { 
-        // XS 1, S 3, M 5, L 8, XL 13
-        return [ 
-            {
-                as: 'CalcPreliminaryEstimate', 
-                f:  function(row) {
-                    var r = _.find(peRecords, function(rec) { return rec.get("ObjectID") == row.PreliminaryEstimate; });
-                    return r !== undefined ? r.get("Value") : 0;    
-                }
-            },
-            {
-                as: 'Completed', 
-                f:  function(row) {
-                return row.PercentDoneByStoryCount == 1 ? 1 : 0;
-                }
-            }
-        ];
-    },
-    getDerivedFieldsAfterSummary : function () {
-        return [
-            {as: 'Projection', 
-            f: function (row, index, summaryMetrics, seriesData) {
-                if (index === 0) {
-                    datesData = _.pluck(seriesData,"label");
-                    var today = new Date();
-                    var li = datesData.length-1;
-                    acceptedData = _.pluck(seriesData,"Accepted Points");
-                    acceptedData = _.filter(acceptedData, function(d,i) { return new Date(Date.parse(datesData[i])) < today; });
-                }
-                var y = linearProject( acceptedData, index);
-                return Math.round(y * 100) / 100;
-            }
-          } 
-        ];
-    },
-   defined : function(v) {
-        return (!_.isUndefined(v) && !_.isNull(v));            
-    }
-   
-});
+var myMask = null;
 
 Ext.define('CustomApp', {
     scopeType: 'release',
@@ -168,7 +91,12 @@ Ext.define('CustomApp', {
                                 function(rel) { releases.push(rel); }
                             );
                         });
-                        this.queryFeatures(releases);
+                        if (releases.length > 0) {
+                            myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+                            myMask.show();
+                            this.queryFeatures(releases);
+                        }
+                            
                     }
                 }
             });
@@ -211,46 +139,53 @@ Ext.define('CustomApp', {
         });        
     },
 
+    createChart1 : function ( features, releases,start,end) {
+        var that = this;
+        var lumenize = window.parent.Rally.data.lookback.Lumenize;
+        var snapShotData = _.map(features,function(d){return d.data});
+        // can be used to 'knockout' holidays
+        var holidays = [
+            {year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
+        ];
+        var myCalc = Ext.create("MyBurnCalculator");
+
+        // calculator config
+        var config = {
+            deriveFieldsOnInput: myCalc.getDerivedFieldsOnInput(),
+            metrics: myCalc.getMetrics(),
+            summaryMetricsConfig: [],
+            deriveFieldsAfterSummary: myCalc.getDerivedFieldsAfterSummary(),
+            granularity: lumenize.Time.DAY,
+            tz: 'America/Chicago',
+            holidays: holidays,
+            workDays: 'Monday,Tuesday,Wednesday,Thursday,Friday'
+        };
+        // release start and end dates
+        var startOnISOString = new lumenize.Time(start).getISOStringInTZ(config.tz)
+        var upToDateISOString = new lumenize.Time(end).getISOStringInTZ(config.tz)
+        // create the calculator and add snapshots to it.
+        calculator = new lumenize.TimeSeriesCalculator(config);
+        calculator.addSnapshots(snapShotData, startOnISOString, upToDateISOString);
+        // create a high charts series config object, used to get the hc series data
+        var hcConfig = [{ name : "label" }, 
+                        { name : "Planned Points" }, 
+                        { name : "PreliminaryEstimate"},
+                        { name : "Accepted Points"},
+                        { name : "Projection"},
+                        { name : "Count", type:'column'},
+                        { name : "Completed",type:'column'} ];
+        var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
+        this._showChart(hc);
+    },
+
     createChart : function (features,releases) {
-        console.log("project",this.project);        
-        var ids = _.pluck(features, function(feature) { return feature.get("ObjectID");} );
         
+        var ids = _.pluck(features, function(feature) { return feature.get("ObjectID");} );
         var start = _.min(_.pluck(releases,function(r) { return r.get("ReleaseStartDate");}));
         var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
-        
         var isoStart  = Rally.util.DateTime.toIsoString(start, false);
-        console.log("start",start);
-        console.log("end"  ,end);
 
-        this.chartConfig.storeConfig.find['ObjectID'] = { "$in": ids };
-        this.chartConfig.storeConfig.find['_ProjectHierarchy'] = { "$in": this.project };
-        //this.chartConfig.storeConfig.find['_ValidTo'] = { "$gte" : isoStart  };
-        //this.chartConfig.storeConfig.find['$or'] = [ {'__At' : 'current'},{ "_ValidTo" : { "$gte" : isoStart  }}];
-
-        this.chartConfig.calculatorConfig.startDate = start;
-        this.chartConfig.calculatorConfig.endDate = end;
-
-        var chart = this.down("#myChart");
-        if (chart!==null) {
-             this.remove(chart); 
-        }
-        this.add(this.chartConfig);
-        //var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', this.chartConfig.storeConfig);
-
-    },
-    
-    chartConfig: {
-        xtype: 'rallychart',
-        itemId : 'myChart',
-        chartColors: ['Gray', 'Orange', 'Green', 'Blue','Green','LightGray'],
-        
-        storeConfig: {
-            listeners: {
-                scope : this,
-                load: function(store, features, success) {
-                    console.log("2nd call features",features.length);
-                }
-            },
+        var storeConfig = {
             find : {
                 '_TypeHierarchy' : { "$in" : ["PortfolioItem/Feature"] }
             },
@@ -259,54 +194,84 @@ Ext.define('CustomApp', {
             limit: 'Infinity',
             fetch: ['ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount'],
             hydrate: ['_TypeHierarchy']
-		},
-        
-        calculatorType: 'MyBurnCalculator',
-        
-        calculatorConfig: {
-            
-        },
+		};
 
-        chartConfig: {
-
-            plotOptions: {
-                series: {
-                    marker: {
-                        radius: 2
-                    }
+        storeConfig.find['ObjectID'] = { "$in": ids };
+        storeConfig.find['_ProjectHierarchy'] = { "$in": this.project };
+        storeConfig.find['_ValidTo'] = { "$gte" : isoStart  };
+        storeConfig.listeners = {
+                scope : this,
+                load: function(store, features, success) {
+                    console.log("2nd call features",features.length);
+                    this.createChart1(features,releases,start,end);
                 }
+        };
+        
+        var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', storeConfig);
+    },
+    
+    _showChart : function(series) {
+        var chart = this.down("#chart1");
+        myMask.hide();
+        if (chart !== null)
+            chart.removeAll();
+        
+        series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
+        
+        var extChart = Ext.create('Rally.ui.chart.Chart', {
+            itemId : "chart1",
+            // width: 800,
+            // height: 500,
+            chartData: {
+                categories : series[0].data,
+                series : series.slice(1, series.length)
             },
-            chart: {
-                colors : [],
-                zoomType: 'xy'
-            },
-            title: {
-                text: 'Feature Burnup'
-            },
-            xAxis: {
-                tickInterval: 7,
-                labels: {
-                    formatter: function() {
-                        var d = new Date(this.value);
-                        return ""+(d.getMonth()+1)+"/"+d.getDate();
-                    }
+            chartColors: ['Gray', 'Orange', 'Green', 'LightGray', 'Blue','Green'],
+
+            chartConfig : {
+                chart: {
                 },
                 title: {
-                    text: 'Days'
-                }
-            },
-            yAxis: [
-                {
-                    title: {
-                        text: 'Points'
+                text: 'PSI Feature Burnup',
+                x: -20 //center
+                },
+                plotOptions: {
+                    series: {
+                        marker: {
+                            radius: 2
+                        }
                     }
-                }
-            ]
-        }
+                },
+                xAxis: {
+                    tickInterval : 7,
+                    labels: {
+                        formatter: function() { var d = new Date(this.value); return ""+(d.getMonth()+1)+"/"+d.getDate(); }
+                    },
+                },
+                yAxis: {
+                    title: {
+                        text: 'Count'
+                    },
+                    plotLines: [{
+                        value: 0,
+                        width: 1,
+                        color: '#808080'
+                    }]
+                },
+                tooltip: {
+                },
+                legend: { align: 'center', verticalAlign: 'bottom' }
+            }
+        });
+        this.add(extChart);
+        var chart = this.down("#chart1");
+        var p = Ext.get(chart.id);
+        var elems = p.query("div.x-mask");
+        _.each(elems, function(e) { e.remove(); });
+        var elems = p.query("div.x-mask-msg");
+        _.each(elems, function(e) { e.remove(); });
     }
 
-    
-    
 });
 
                 Ext.define('Ext.ux.CheckCombo',
@@ -603,6 +568,85 @@ Ext.define('CustomApp', {
         }
     }
 });
+                Ext.define("MyBurnCalculator", {
+   extend: "Rally.data.lookback.calculator.TimeSeriesCalculator",
+   
+    getMetrics: function () {
+        var metrics = [
+           {
+               field: "LeafStoryPlanEstimateTotal",
+               as: "Planned Points",
+               display: "line",
+               f: "sum"
+           },
+           {
+               field: "CalcPreliminaryEstimate",
+               as: "PreliminaryEstimate",
+               display: "line",
+               f: "sum"
+           },
+           {
+               field: "AcceptedLeafStoryPlanEstimateTotal",
+               as: "Accepted Points",
+               display: "line",
+               f: "sum"
+           },
+            {
+               field: "ObjectID",
+               as: "Count",
+               display: "column",
+               f: "count"
+            },
+            {
+               field: "Completed",
+               as: "Completed",
+               display: "column",
+               f: "sum"
+            }
+       ];
+        return metrics;
+    },
+    getDerivedFieldsOnInput : function () { 
+        // XS 1, S 3, M 5, L 8, XL 13
+        return [ 
+            {
+                as: 'CalcPreliminaryEstimate', 
+                f:  function(row) {
+                    var r = _.find(peRecords, function(rec) { return rec.get("ObjectID") == row.PreliminaryEstimate; });
+                    return r !== undefined ? r.get("Value") : 0;    
+                }
+            },
+            {
+                as: 'Completed', 
+                f:  function(row) {
+                return row.PercentDoneByStoryCount == 1 ? 1 : 0;
+                }
+            }
+        ];
+    },
+    getDerivedFieldsAfterSummary : function () {
+        return [
+            {as: 'Projection', 
+            f: function (row, index, summaryMetrics, seriesData) {
+                if (index === 0) {
+                    datesData = _.pluck(seriesData,"label");
+                    var today = new Date();
+                    var li = datesData.length-1;
+                    acceptedData = _.pluck(seriesData,"Accepted Points");
+                    acceptedData = _.filter(acceptedData, function(d,i) { return new Date(Date.parse(datesData[i])) < today; });
+                }
+                var y = linearProject( acceptedData, index);
+                return Math.round(y * 100) / 100;
+            }
+          } 
+        ];
+    },
+   defined : function(v) {
+        return (!_.isUndefined(v) && !_.isNull(v));            
+    }
+   
+});
+
                 function LineFitter()
 {
     this.count = 0;

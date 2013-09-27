@@ -6,7 +6,9 @@
    "javascript": [
       "App.js",
       "combo.js",
-      "line-fitter.js"
+      "calculator.js",
+      "line-fitter.js",
+      "https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"
    ],
    "css": [
       "app.css"
