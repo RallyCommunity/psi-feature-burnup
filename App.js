@@ -9,18 +9,13 @@ Ext.define('CustomApp', {
 
     launch: function() {
         console.log("launch");
-
+        // get the project id.
         this.project = this.getContext().getProject().ObjectID;
 
-        var timeboxScope = this.getContext().getTimeboxScope();
-        var tbName = null;
-        if(timeboxScope) {
-            var record = timeboxScope.getRecord();
-            tbName = record.get('Name');
-        } else {
-            tbName = "";
-        }
+        // get the release (if on a page scoped to the release)
+        var tbName = getReleaseTimeBox(this);
 
+        // get the preliminary estimate values
         var peStore = Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
             model: 'PreliminaryEstimate',
@@ -36,79 +31,85 @@ Ext.define('CustomApp', {
         });
     },
     
+    // queries all releases 
     queryReleases : function(name) {
         
         console.log("Selected Releases:",name);
     
         return Ext.create('Rally.data.WsapiDataStore', {
-        autoLoad: true,
-        model: 'Release',
-        limit : 'Infinity',
-        fetch: ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ],
-        filters: [],
-        listeners: {
-        load: function(store, releaseRecords) {
-
-            // given a list of all releases (accross sub projects)
-            var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID"), releaseDate : new Date(Date.parse(rec.get("ReleaseDate")))};});
-            // get a unique list by name to display in combobox        
-            releases = _.uniq( releases, function (r) { return r.name; });
-            releases = _.sortBy( releases, function(rec) {return rec.releaseDate;}).reverse();
-            // create a store with the set of unique releases
-            var releasesStore = Ext.create('Ext.data.Store', {
-                fields: ['name','objectid'], data : releases 
-            });
+            autoLoad: true,
+            model: 'Release',
+            limit : 'Infinity',
+            fetch: ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ],
+            filters: [],
+            listeners: {
+                load: function(store, releaseRecords) {
+                    this.createReleaseCombo(releaseRecords);
+                },
+                scope: this
+          },
           
-            // construct the combo box using the store
-            var cb = Ext.create("Ext.ux.CheckCombo", {
-                fieldLabel: 'Release',
-                store: releasesStore,
-                queryMode: 'local',
-                displayField: 'name',
-                valueField: 'name',
-                noData : true,
-                width: 300,
+        });
+    },
+    
+    // creates a release drop down combo box with the uniq set of release names
+    createReleaseCombo : function(releaseRecords) {
+        
+        // given a list of all releases (accross sub projects)
+        var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID"), releaseDate : new Date(Date.parse(rec.get("ReleaseDate")))};});
+        // get a unique list by name to display in combobox        
+        releases = _.uniq( releases, function (r) { return r.name; });
+        releases = _.sortBy( releases, function(rec) {return rec.releaseDate;}).reverse();
+        // create a store with the set of unique releases
+        var releasesStore = Ext.create('Ext.data.Store', {
+            fields: ['name','objectid'], data : releases 
+        });
+        // construct the combo box using the store
+        var cb = Ext.create("Ext.ux.CheckCombo", {
+            fieldLabel: 'Release',
+            store: releasesStore,
+            queryMode: 'local',
+            displayField: 'name',
+            valueField: 'name',
+            noData : true,
+            width: 300,
                 
-                listeners : {
-                    scope : this,
-                    // after collapsing the list
-                    collapse : function ( field, eOpts ) {
-                        var releases = [];
-                        // for each selected release name, select all releases with that name and grap the object id and push it into an 
-                        // array. The result will be an array of all matching release that we will use to query for snapshots.
-                        _.each( field.getValue().split(","), function (rn) {
-                            _.each( _.filter( releaseRecords, function(r) { return rn == r.get("Name"); }),
-                                function(rel) { releases.push(rel); }
-                            );
-                        });
-                        if (releases.length > 0) {
-                            myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
-                            myMask.show();
-                            this.queryFeatures(releases);
-                        }
-                            
+            listeners : {
+                scope : this,
+                // after collapsing the list
+                collapse : function ( field, eOpts ) {
+                    var r = [];
+                    console.log(field.getValue());
+                    // // for each selected release name, select all releases with that name and grab the object id and push it into an 
+                    // // array. The result will be an array of all matching release that we will use to query for snapshots.
+                    _.each( field.getValue().split(","), function (rn) {
+                        var matching_releases = _.filter( releaseRecords, function(r) { return rn == r.get("Name");});
+                        var uniq_releases = _.uniq(matching_releases, function(r) { return r.get("Name"); });
+                        _.each(uniq_releases,function(release) { r.push(release) });
+                    });
+                    console.log("r",r);
+                    if (r.length > 0) {
+                        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+                        myMask.show();
+                        this.queryFeatures(r);
                     }
                 }
-            });
-            this.add(cb);
-          },
-          scope: this
-        }
-      });
-    
+            }
+        });
+        this.add(cb);
     },
     
     queryFeatures : function(releases) {
         // get Features for the selected release(s)
         var that = this;
-        var uniqReleases = _.uniq(releases,function(release) { return release.get("Name");});
         var filter = null;
-        _.each(uniqReleases,function(release,i) {
+        _.each(releases,function(release,i) {
+            console.log("release",release);
             var f = Ext.create('Rally.data.QueryFilter', {
                 property: 'Release.Name',
                 operator: '=',
-                value: release.get("Name")});
-
+                value: release.get("Name")
+            });
             filter = i == 0 ? f : filter.or(f);
         });
         
@@ -123,7 +124,7 @@ Ext.define('CustomApp', {
             listeners: {
                 load: function(store, features) {
                     console.log("# of features in chart:",features.length);
-                    that.createChart(features,uniqReleases);
+                    that.createChart(features,releases);
                 }
             }
         });        
