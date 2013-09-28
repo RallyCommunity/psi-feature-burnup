@@ -1,0 +1,15 @@
+{
+   "name": "feature-teams",
+   "className": "CustomApp",
+   "server": "https://rally1.rallydev.com",
+   "sdk": "2.0rc1",
+   "javascript": [
+      "App.js",
+      "../utility.js",
+      "../combo.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/async/1.22/async.min.js"
+   ],
+   "css": [
+      "app.css"
+   ]
+}
