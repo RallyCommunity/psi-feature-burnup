@@ -120,6 +120,12 @@ Ext.define('CustomApp', {
             filter = i == 0 ? f : filter.or(f);
         });
         
+        // filter = filter.and(Ext.create('Rally.data.QueryFilter', {
+        //             property: 'FormattedID',
+        //             operator: '=',
+        //             value: 'F234'
+        // }));
+        
         var config = { 
             model  : "PortfolioItem/Feature",
             fetch  : ['ObjectID','FormattedID','Name','LeafStoryCount','AcceptedLeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal' ],
@@ -146,17 +152,21 @@ Ext.define('CustomApp', {
         });
         
         this.columns = [
-            { header : 'ID',        dataIndex: 'ID'},
-            { header : "Name",      dataIndex : "Name", width : 300      },
-            { header : "Progress",  dataIndex : "Progress",   align : "center", renderer : this.renderPercentDone, width : 100}, 
+            { header : 'ID',        dataIndex: 'ID', width : 50, align : "center", locked:true},
+            { header : "Name",      dataIndex : "Name", width : 300,locked:true      },
+            { header : "Progress",  align : "center", renderer : this.renderProgress, width : 100,locked:true}, 
         ];
         
         this.grid = Ext.create('Ext.grid.Panel', {
             itemId : 'mygrid',
             store: this.store,
-            // width : 1800,
+            // width : 1000,
             // height : 600,
-            columns: this.columns
+            columns: this.columns,
+            viewConfig: {
+                stripeRows: true
+            },
+            columnLines: true
         });
         // add it to the app
         if (this.down("#mygrid"))
@@ -181,7 +191,7 @@ Ext.define('CustomApp', {
                 app.columns.push({  
                     text: p, 
                     header: app.projectName(p), 
-                    dataIndex: p, 
+                    // dataIndex: p, 
                     flex: 1, 
                     width : 120, 
                     align : 'center', 
@@ -198,20 +208,15 @@ Ext.define('CustomApp', {
         return project ? project.get("Name") : null;
     },
     
+    renderProgress : function(value,meta,rec,row,col) {
+        return app.renderValue(rec.get("Progress"));
+    },
+    
     renderPercentDone : function(value,meta,rec,row,col) {
-        if (col==2) {
-            return app.renderValue(rec.get("Progress"));
-        }
-        else {
-            var key = app.columns[col].text;
-            if (_.isUndefined(rec.raw.Teams))
-                return app.renderValue(0);
-            else
-                if (_.isUndefined(rec.raw.Teams[key]))
-                    return "";
-                else
-                    return app.renderValue( rec.raw.Teams[key]);
-        }
+        var p = app.columns[3+col].text;
+        return (_.isUndefined(rec.raw.Teams) || _.isUndefined(rec.raw.Teams[p])) 
+            ? "" 
+            : app.renderValue( rec.raw.Teams[p]);
     },
     
     renderValue : function(v) {
@@ -222,7 +227,8 @@ Ext.define('CustomApp', {
                 text : ""+Math.round(v)+"%",
                 renderTo: id,
                 value: v / 100,
-                width: 50
+                // width: 50, height : 16,
+                cls : "tinytext"
             });
         }, 50);
         return Ext.String.format('<div id="{0}"></div>', id);
@@ -240,7 +246,6 @@ Ext.define('CustomApp', {
                 scope : this,
                 load: function(store, data, success) {
                     var children = _.filter( data, function (d) { return d.get("Children").length == 0;});
-                    
                     var grouped = _.groupBy( children, function(child) { return child.get("Project");});
                     _.each( _.keys(grouped), function(key) {
                         var stories = grouped[key];
@@ -251,7 +256,7 @@ Ext.define('CustomApp', {
                         row["Teams"][key] = p;
                     });
                     //if (!_.isUndefined(row["Teams"]) && _.keys(row["Teams"]).length>1)
-                    app.rows.push(row);
+                        app.rows.push(row);
                     callback(null,row);
                 }
             },

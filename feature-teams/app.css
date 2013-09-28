@@ -15,3 +15,15 @@
     text-align: center;
     top: 20%;
 }
+
+.x-grid-cell-inner {
+    overflow: hidden;
+    /*padding: 8px 12px;*/
+    padding: 6px 2px 2px 2px;
+    white-space: nowrap;
+    height : 28px;
+ }
+ 
+ .tinytext {
+    font-size:xx-small;
+ }
