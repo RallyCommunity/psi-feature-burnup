@@ -14,8 +14,6 @@ Ext.define('CustomApp', {
         this.project = this.getContext().getProject().ObjectID;
         app = this;
         var that = this;
-        this.rows = [];
-
         // get the release (if on a page scoped to the release)
         var tbName = getReleaseTimeBox(this);
 
@@ -73,6 +71,7 @@ Ext.define('CustomApp', {
         });
         // construct the combo box using the store
         var cb = Ext.create("Ext.ux.CheckCombo", {
+            itemId : 'comboRelease',
             fieldLabel: 'Release',
             store: releasesStore,
             queryMode: 'local',
@@ -85,50 +84,100 @@ Ext.define('CustomApp', {
                 scope : this,
                 // after collapsing the list
                 collapse : function ( field, eOpts ) {
-                    var r = [];
-                    console.log(field.getValue());
-                    // // for each selected release name, select all releases with that name and grab the object id and push it into an 
-                    // // array. The result will be an array of all matching release that we will use to query for snapshots.
-                    _.each( field.getValue().split(","), function (rn) {
-                        var matching_releases = _.filter( releaseRecords, function(r) { return rn == r.get("Name");});
-                        var uniq_releases = _.uniq(matching_releases, function(r) { return r.get("Name"); });
-                        _.each(uniq_releases,function(release) { r.push(release) });
-                    });
-                    console.log("r",r);
-                    if (r.length > 0) {
-                        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
-                        myMask.show();
-                        this.queryFeatures(r);
-                    }
+                        this.queryFeatures(releases);
                 }
             }
         });
-        this.add(cb);
+        // this.add(cb);
+        
+        var cbCompleted = Ext.create("Rally.ui.CheckboxField", {
+            fieldLabel : "Hide Completed",
+            itemId : "cbCompleted",
+            value  : false,    
+            listeners : {
+                scope : this,
+                change : function() {
+                    this.queryFeatures(releases);
+                }
+            }
+        });
+        
+        var container = Ext.create('Ext.container.Container', {
+            layout: {
+                type: 'hbox',
+                align : 'stretch',
+                defaultMargins : { top: 0, right: 20, bottom: 0, left: 0 }
+            }
+        });
+        
+        container.add(cb);
+        container.add(cbCompleted);
+
+        this.add(container);
     },
     
     queryFeatures : function(releases) {
         // get Features for the selected release(s)
+        var comboRelease = this.down("#comboRelease");
+        var cbCompleted = this.down("#cbCompleted");
+        console.log( "releases:",comboRelease.getValue()," completed:",cbCompleted.getValue());
+        console.log(releases);
         var that = this;
+        this.rows = [];
+
+        if (this.down("#mygrid"))
+            this.down("#mygrid").removeAll();
+            
+        if (comboRelease.getValue()=="") {
+            console.log("returning...");
+            return;
+        }
+
+        var selectedR = [];
+        // // for each selected release name, select all releases with that name and grab the object id and push it into an 
+        // // array. The result will be an array of all matching release that we will use to query for snapshots.
+        _.each( comboRelease.getValue().split(","), function (rn) {
+            var matching_releases = _.filter( releases, function(r) { return rn == r.name;});
+            var uniq_releases = _.uniq(matching_releases, function(r) { return r.name; });
+            _.each(uniq_releases,function(release) { selectedR.push(release) });
+        });
+        console.log("selectedR",selectedR);
+        
+        if (selectedR.length > 0) {
+            myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+            myMask.show();
+        } else {
+            console.log("returning...");
+            return;
+        }
+
         var filter = null;
-        _.each(releases,function(release,i) {
+        var compFilter = null;
+        _.each(selectedR,function(release,i) {
             console.log("release",release);
             var f = Ext.create('Rally.data.QueryFilter', {
                 property: 'Release.Name',
                 operator: '=',
-                value: release.get("Name")
+                value: release.name
             });
             filter = i == 0 ? f : filter.or(f);
         });
         
-        // filter = filter.and(Ext.create('Rally.data.QueryFilter', {
-        //             property: 'FormattedID',
-        //             operator: '=',
-        //             value: 'F234'
-        // }));
+        // add filter for completed
+        if (cbCompleted.getValue()==true) {
+            filter = filter.and (Ext.create('Rally.data.QueryFilter', {
+                property: 'PercentDoneByStoryPlanEstimate',
+                operator: '<',
+                value: 1
+            }));
+        }
+        
+
+        console.log("filter",filter.toString());
         
         var config = { 
             model  : "PortfolioItem/Feature",
-            fetch  : ['ObjectID','FormattedID','Name','LeafStoryCount','AcceptedLeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal' ],
+            fetch  : ['ObjectID','FormattedID','Name','LeafStoryCount','AcceptedLeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount' ],
             filters: [filter]
         };
         
@@ -171,6 +220,7 @@ Ext.define('CustomApp', {
         // add it to the app
         if (this.down("#mygrid"))
             this.down("#mygrid").removeAll();
+        console.log("adding grid...");
         this.add(this.grid);    
 
         async.map(features, this.readFeature, function(err,results) {
@@ -220,22 +270,18 @@ Ext.define('CustomApp', {
     },
     
     renderValue : function(v) {
-        
         var id = Ext.id();
         Ext.defer(function () {
             Ext.widget('progressbar', {
                 text : ""+Math.round(v)+"%",
                 renderTo: id,
                 value: v / 100,
-                // width: 50, height : 16,
-                cls : "tinytext"
             });
         }, 50);
         return Ext.String.format('<div id="{0}"></div>', id);
     },
     
     readFeature : function(feature,callback) {
-        
         var p = feature.get("LeafStoryPlanEstimateTotal") > 0 ?
             (feature.get("AcceptedLeafStoryPlanEstimateTotal") / feature.get("LeafStoryPlanEstimateTotal"))*100 : 0;
         var row = ({ID:feature.get("FormattedID"),Name:feature.get("Name"),Progress:p});
@@ -256,7 +302,7 @@ Ext.define('CustomApp', {
                         row["Teams"][key] = p;
                     });
                     //if (!_.isUndefined(row["Teams"]) && _.keys(row["Teams"]).length>1)
-                        app.rows.push(row);
+                    app.rows.push(row);
                     callback(null,row);
                 }
             },
@@ -281,5 +327,4 @@ Ext.define('CustomApp', {
             ]
         });
     }
-
 });
