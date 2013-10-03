@@ -1,6 +1,6 @@
-var peRecords = [];
 var acceptedData = [];
 var myMask = null;
+var app = null;
 
 Ext.define('CustomApp', {
     scopeType: 'release',
@@ -8,6 +8,8 @@ Ext.define('CustomApp', {
     componentCls: 'app',
 
     launch: function() {
+        app = this;
+        var that = this;
         console.log("launch");
         // get the project id.
         this.project = this.getContext().getProject().ObjectID;
@@ -15,43 +17,51 @@ Ext.define('CustomApp', {
         // get the release (if on a page scoped to the release)
         var tbName = getReleaseTimeBox(this);
 
-        // get the preliminary estimate values
-        var peStore = Ext.create('Rally.data.WsapiDataStore', {
-            autoLoad: true,
-            model: 'PreliminaryEstimate',
-            fetch: ['Name', 'ObjectID', 'Value'],
-            filters: [],
-            listeners: {
+        var configs = [];
+        
+        configs.push({ model : "PreliminaryEstimate", 
+                       fetch : ['Name','ObjectID','Value'], 
+                       filters : [] 
+        });
+        configs.push({ model : "Project",             
+                       fetch : ['Name','ObjectID'], 
+                       filters : [] 
+        });
+        configs.push({ model : "Release",             
+                       fetch : ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ], 
+                       filters:[] 
+        });
+        configs.push({ model : "Iteration",             
+                       fetch : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ], 
+                       filters:[] 
+        });
+        
+        async.map( configs, this.wsapiQuery, function(err,results) {
+            //console.log("results",results);
+            that.peRecords = results[0];
+            that.projects  = results[1];
+            that.releases  = results[2];
+            that.iterations = results[3];
+            that.createReleaseCombo(that.releases);
+        });
+    },
+    
+    wsapiQuery : function( config , callback ) {
+        Ext.create('Rally.data.WsapiDataStore', {
+            autoLoad : true,
+            limit : "infinity",
+            model : config.model,
+            fetch : config.fetch,
+            filters : config.filters,
+            listeners : {
                 scope : this,
-                load: function(store, data) {       
-                    peRecords = data;
-                    this.queryReleases(tbName);
+                load : function(store, data) {
+                    callback(null,data);
                 }
             }
         });
     },
-    
-    // queries all releases 
-    queryReleases : function(name) {
-        
-        console.log("Selected Releases:",name);
-    
-        return Ext.create('Rally.data.WsapiDataStore', {
-            autoLoad: true,
-            model: 'Release',
-            limit : 'Infinity',
-            fetch: ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ],
-            filters: [],
-            listeners: {
-                load: function(store, releaseRecords) {
-                    this.createReleaseCombo(releaseRecords);
-                },
-                scope: this
-          },
-          
-        });
-    },
-    
+
     // creates a release drop down combo box with the uniq set of release names
     createReleaseCombo : function(releaseRecords) {
         
@@ -87,10 +97,10 @@ Ext.define('CustomApp', {
                         var uniq_releases = _.uniq(matching_releases, function(r) { return r.get("Name"); });
                         _.each(uniq_releases,function(release) { r.push(release) });
                     });
-                    console.log("r",r);
                     if (r.length > 0) {
                         myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
                         myMask.show();
+                        this.selectedReleases = r;
                         this.queryFeatures(r);
                     }
                 }
@@ -104,7 +114,6 @@ Ext.define('CustomApp', {
         var that = this;
         var filter = null;
         _.each(releases,function(release,i) {
-            console.log("release",release);
             var f = Ext.create('Rally.data.QueryFilter', {
                 property: 'Release.Name',
                 operator: '=',
@@ -113,8 +122,6 @@ Ext.define('CustomApp', {
             filter = i == 0 ? f : filter.or(f);
         });
         
-        console.log("filter:",filter.toString());
-
         return Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
             model: 'PortfolioItem/Feature',
@@ -149,7 +156,7 @@ Ext.define('CustomApp', {
             granularity: lumenize.Time.DAY,
             tz: 'America/Chicago',
             holidays: holidays,
-            workDays: 'Monday,Tuesday,Wednesday,Thursday,Friday'
+            workDays: 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday'
         };
         // release start and end dates
         var startOnISOString = new lumenize.Time(start).getISOStringInTZ(config.tz)
@@ -166,7 +173,38 @@ Ext.define('CustomApp', {
                         { name : "Count", type:'column'},
                         { name : "Completed",type:'column'} ];
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
+        
         this._showChart(hc);
+    },
+    
+    createPlotLines : function(seriesData) { 
+        // filter the iterations
+        var start = new Date( Date.parse(seriesData[0]));
+        var end   = new Date( Date.parse(seriesData[seriesData.length-1]));
+        var releaseI = _.filter(this.iterations,function(i) { return i.get("EndDate") >= start && i.get("EndDate") <= end;});
+        releaseI = _.uniq(releaseI,function(i) { return i.get("Name");});
+        var itPlotLines = _.map(releaseI, function(i){
+            var d = new Date(Date.parse(i.raw.EndDate)).toISOString().split("T")[0];
+            return {
+                label : i.get("Name"),
+                dashStyle : "Dot",
+                color: 'grey',
+                width: 1,
+                value: _.indexOf(seriesData,d)
+            }; 
+        });
+        // create release plot lines        
+        var rePlotLines = _.map(this.selectedReleases, function(i){
+            var d = new Date(Date.parse(i.raw.ReleaseDate)).toISOString().split("T")[0];
+            return {
+                label : i.get("Name"),
+                // dashStyle : "Dot",
+                color: 'grey',
+                width: 1,
+                value: _.indexOf(seriesData,d)
+            }; 
+        });
+        return itPlotLines.concat(rePlotLines);
     },
 
     createChart : function (features,releases) {
@@ -175,7 +213,7 @@ Ext.define('CustomApp', {
         var start = _.min(_.pluck(releases,function(r) { return r.get("ReleaseStartDate");}));
         var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
         var isoStart  = Rally.util.DateTime.toIsoString(start, false);
-
+        
         var storeConfig = {
             find : {
                 '_TypeHierarchy' : { "$in" : ["PortfolioItem/Feature"] }
@@ -201,11 +239,15 @@ Ext.define('CustomApp', {
         var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', storeConfig);
     },
     
-    _showChart : function(series) {
+    _showChart : function(series,plotlines) {
         var chart = this.down("#chart1");
         myMask.hide();
         if (chart !== null)
             chart.removeAll();
+            
+        // create plotlines
+        var plotlines = this.createPlotLines(series[0].data);
+
         
         series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
         
@@ -234,6 +276,7 @@ Ext.define('CustomApp', {
                     }
                 },
                 xAxis: {
+                    plotLines : plotlines,
                     tickInterval : 7,
                     labels: {
                         formatter: function() { var d = new Date(this.value); return ""+(d.getMonth()+1)+"/"+d.getDate(); }

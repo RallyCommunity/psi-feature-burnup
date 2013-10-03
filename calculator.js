@@ -42,7 +42,7 @@ Ext.define("MyBurnCalculator", {
             {
                 as: 'CalcPreliminaryEstimate', 
                 f:  function(row) {
-                    var r = _.find(peRecords, function(rec) { return rec.get("ObjectID") == row.PreliminaryEstimate; });
+                    var r = _.find(app.peRecords, function(rec) { return rec.get("ObjectID") == row.PreliminaryEstimate; });
                     return r !== undefined ? r.get("Value") : 0;    
                 }
             },

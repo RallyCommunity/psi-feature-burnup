@@ -31,12 +31,17 @@ Ext.define('CustomApp', {
                        fetch : ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ], 
                        filters:[] 
         });
+        configs.push({ model : "Iteration",             
+                       fetch : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ], 
+                       filters:[] 
+        });
         
         async.map( configs, this.wsapiQuery, function(err,results) {
             console.log("results",results);
             that.peRecords = results[0];
             that.projects  = results[1];
             that.releases  = results[2];
+            that.iterations = results[3];
             that.createReleaseCombo(that.releases);
         });
     },
@@ -93,7 +98,7 @@ Ext.define('CustomApp', {
         var cbCompleted = Ext.create("Rally.ui.CheckboxField", {
             fieldLabel : "Hide Completed",
             itemId : "cbCompleted",
-            value  : false,    
+            value  : true,    
             listeners : {
                 scope : this,
                 change : function() {
