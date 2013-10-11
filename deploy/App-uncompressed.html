@@ -34,10 +34,10 @@ Ext.define('CustomApp', {
                        fetch : ['Name','ObjectID','Value'], 
                        filters : [] 
         });
-        configs.push({ model : "Project",             
-                       fetch : ['Name','ObjectID'], 
-                       filters : [] 
-        });
+        // configs.push({ model : "Project",             
+        //               fetch : ['Name','ObjectID'], 
+        //               filters : [] 
+        // });
         configs.push({ model : "Release",             
                        fetch : ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ], 
                        filters:[] 
@@ -48,11 +48,10 @@ Ext.define('CustomApp', {
         });
         
         async.map( configs, this.wsapiQuery, function(err,results) {
-            //console.log("results",results);
             that.peRecords = results[0];
-            that.projects  = results[1];
-            that.releases  = results[2];
-            that.iterations = results[3];
+            // that.projects  = results[1];
+            that.releases  = results[1];
+            that.iterations = results[2];
             that.createReleaseCombo(that.releases);
         });
     },
@@ -100,13 +99,12 @@ Ext.define('CustomApp', {
                 // after collapsing the list
                 collapse : function ( field, eOpts ) {
                     var r = [];
-                    console.log(field.getValue());
                     // // for each selected release name, select all releases with that name and grab the object id and push it into an 
                     // // array. The result will be an array of all matching release that we will use to query for snapshots.
                     _.each( field.getValue().split(","), function (rn) {
                         var matching_releases = _.filter( releaseRecords, function(r) { return rn == r.get("Name");});
                         var uniq_releases = _.uniq(matching_releases, function(r) { return r.get("Name"); });
-                        _.each(uniq_releases,function(release) { r.push(release) });
+                        _.each(uniq_releases,function(release) { r.push(release); });
                     });
                     if (r.length > 0) {
                         myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
@@ -130,7 +128,7 @@ Ext.define('CustomApp', {
                 operator: '=',
                 value: release.get("Name")
             });
-            filter = i == 0 ? f : filter.or(f);
+            filter = i === 0 ? f : filter.or(f);
         });
         
         return Ext.create('Rally.data.WsapiDataStore', {
@@ -141,7 +139,6 @@ Ext.define('CustomApp', {
             filters: [filter],
             listeners: {
                 load: function(store, features) {
-                    console.log("# of features in chart:",features.length);
                     that.createChart(features,releases);
                 }
             }
@@ -151,7 +148,7 @@ Ext.define('CustomApp', {
     createChart1 : function ( features, releases,start,end) {
         var that = this;
         var lumenize = window.parent.Rally.data.lookback.Lumenize;
-        var snapShotData = _.map(features,function(d){return d.data});
+        var snapShotData = _.map(features,function(d){return d.data;});
         // can be used to 'knockout' holidays
         var holidays = [
             {year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
@@ -170,8 +167,8 @@ Ext.define('CustomApp', {
             workDays: 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday'
         };
         // release start and end dates
-        var startOnISOString = new lumenize.Time(start).getISOStringInTZ(config.tz)
-        var upToDateISOString = new lumenize.Time(end).getISOStringInTZ(config.tz)
+        var startOnISOString = new lumenize.Time(start).getISOStringInTZ(config.tz);
+        var upToDateISOString = new lumenize.Time(end).getISOStringInTZ(config.tz);
         // create the calculator and add snapshots to it.
         calculator = new lumenize.TimeSeriesCalculator(config);
         calculator.addSnapshots(snapShotData, startOnISOString, upToDateISOString);
@@ -242,7 +239,6 @@ Ext.define('CustomApp', {
         storeConfig.listeners = {
                 scope : this,
                 load: function(store, features, success) {
-                    console.log("2nd call features",features.length);
                     this.createChart1(features,releases,start,end);
                 }
         };
@@ -250,7 +246,7 @@ Ext.define('CustomApp', {
         var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', storeConfig);
     },
     
-    _showChart : function(series,plotlines) {
+    _showChart : function(series) {
         var chart = this.down("#chart1");
         myMask.hide();
         if (chart !== null)
@@ -264,8 +260,6 @@ Ext.define('CustomApp', {
         
         var extChart = Ext.create('Rally.ui.chart.Chart', {
             itemId : "chart1",
-            // width: 800,
-            // height: 500,
             chartData: {
                 categories : series[0].data,
                 series : series.slice(1, series.length)
@@ -291,7 +285,7 @@ Ext.define('CustomApp', {
                     tickInterval : 7,
                     labels: {
                         formatter: function() { var d = new Date(this.value); return ""+(d.getMonth()+1)+"/"+d.getDate(); }
-                    },
+                    }
                 },
                 yAxis: {
                     title: {
@@ -309,9 +303,9 @@ Ext.define('CustomApp', {
             }
         });
         this.add(extChart);
-        var chart = this.down("#chart1");
+        chart = this.down("#chart1");
         var p = Ext.get(chart.id);
-        var elems = p.query("div.x-mask");
+        elems = p.query("div.x-mask");
         _.each(elems, function(e) { e.remove(); });
         var elems = p.query("div.x-mask-msg");
         _.each(elems, function(e) { e.remove(); });
