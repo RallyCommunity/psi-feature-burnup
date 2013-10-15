@@ -4,6 +4,12 @@ Ext.define("MyBurnCalculator", {
     getMetrics: function () {
         var metrics = [
            {
+               field: "LeafStoryCount",
+               as: "Planned Count",
+               display: "line",
+               f: "sum"
+           },
+           {
                field: "LeafStoryPlanEstimateTotal",
                as: "Planned Points",
                display: "line",
@@ -15,12 +21,18 @@ Ext.define("MyBurnCalculator", {
                display: "line",
                f: "sum"
            },
-           {
-               field: "AcceptedLeafStoryPlanEstimateTotal",
+            {
+                field: "AcceptedLeafStoryPlanEstimateTotal",
+                as: "Accepted Points",
+                display: "line",
+                f: "sum"
+            },
+            {
+               field: "AcceptedLeafStoryCount",
                as: "Accepted Points",
                display: "line",
                f: "sum"
-           },
+            },
             {
                field: "ObjectID",
                as: "Count",

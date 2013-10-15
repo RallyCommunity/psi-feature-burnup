@@ -2,6 +2,8 @@ var acceptedData = [];
 var myMask = null;
 var app = null;
 
+// demonstrate github.com
+
 Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
