@@ -218,7 +218,6 @@ Ext.define('CustomApp', {
         calculator = new lumenize.TimeSeriesCalculator(config);
         calculator.addSnapshots(snapShotData, startOnISOString, upToDateISOString);
         
-        console.log("results data",calculator.getResults().seriesData);
         // create a high charts series config object, used to get the hc series data
         var hcConfig = [{ name : "label" }, 
                         this.pointsUnitType() ? { name : "Planned Points" } : { name : "Planned Count" }, 
@@ -294,7 +293,7 @@ Ext.define('CustomApp', {
     },
     
     _showChart : function(series) {
-        console.log("series",series);
+        var that = this;
         var chart = this.down("#chart1");
         myMask.hide();
         if (chart !== null)
@@ -338,7 +337,7 @@ Ext.define('CustomApp', {
                 },
                 yAxis: {
                     title: {
-                        text: 'Count'
+                        text: that.pointsUnitType() ? 'Points':'Count'
                     },
                     plotLines: [{
                         value: 0,
