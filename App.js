@@ -1,4 +1,5 @@
-var acceptedData = [];
+var acceptedPointsData = [];
+var acceptedCountData = [];
 var myMask = null;
 var app = null;
 
@@ -8,6 +9,8 @@ Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
     componentCls: 'app',
+    
+    layout : 'column',
 
     launch: function() {
         app = this;
@@ -44,6 +47,7 @@ Ext.define('CustomApp', {
             that.releases  = results[1];
             that.iterations = results[2];
             that.createReleaseCombo(that.releases);
+            that.createTypeChooser();
         });
     },
     
@@ -61,6 +65,41 @@ Ext.define('CustomApp', {
                 }
             }
         });
+    },
+    
+    createTypeChooser : function() {
+        
+        this.chooser = Ext.create( 'Ext.form.FieldContainer', {
+            columnWidth : .25,
+            labelStyle: 'padding-left:10px;',
+            fieldLabel : 'Type',
+            defaultType: 'radiofield',
+            defaults: {
+                flex: 1
+            },
+            layout: 'hbox',
+            value : 'points',
+            items: [
+                {
+                    boxLabel  : 'Points',
+                    name      : 'Type',
+                    inputValue: 0,
+                    id        : 'radio4',
+                    
+                }, {
+                    boxLabel  : 'Count',
+                    name      : 'Type',
+                    inputValue: 1,
+                    id        : 'radio5',
+                }
+            ]
+        });
+        
+        this.chooser.items.items[0].setValue(true);
+        this.add(this.chooser);
+        //this.add(Ext.create('Ext.panel.Panel',{columnWidth:.5}));
+        
+        
     },
 
     // creates a release drop down combo box with the uniq set of release names
@@ -83,7 +122,8 @@ Ext.define('CustomApp', {
             displayField: 'name',
             valueField: 'name',
             noData : true,
-            width: 300,
+            // width: 300,
+            columnWidth: .25,
                 
             listeners : {
                 scope : this,
@@ -135,8 +175,22 @@ Ext.define('CustomApp', {
             }
         });        
     },
+    
+    pointsUnitType : function() {
+
+        return this.chooser.items.items[0].getValue()==true;
+
+    },
 
     createChart1 : function ( features, releases,start,end) {
+        
+        // console.log("features",features);
+        // var fs = _.filter(features,function(f) { return f.raw._ValidTo.indexOf("9999") !== -1;});
+        // console.log("features",fs.length);
+        // console.log("features",fs);
+        // console.log("features",_.map(fs,function(f) {return f.raw._UnformattedID +":"+ f.raw.AcceptedLeafStoryCount.toString()}));
+
+        
         var that = this;
         var lumenize = window.parent.Rally.data.lookback.Lumenize;
         var snapShotData = _.map(features,function(d){return d.data;});
@@ -163,12 +217,14 @@ Ext.define('CustomApp', {
         // create the calculator and add snapshots to it.
         calculator = new lumenize.TimeSeriesCalculator(config);
         calculator.addSnapshots(snapShotData, startOnISOString, upToDateISOString);
+        
+        console.log("results data",calculator.getResults().seriesData);
         // create a high charts series config object, used to get the hc series data
         var hcConfig = [{ name : "label" }, 
-                        { name : "Planned Points" }, 
+                        this.pointsUnitType() ? { name : "Planned Points" } : { name : "Planned Count" }, 
                         { name : "PreliminaryEstimate"},
-                        { name : "Accepted Points"},
-                        { name : "Projection"},
+                        this.pointsUnitType() ? { name : "Accepted Points"} : { name : "Accepted Count"},
+                        this.pointsUnitType() ? { name : "ProjectionPoints"}: { name : "ProjectionCount"},
                         { name : "Count", type:'column'},
                         { name : "Completed",type:'column'} ];
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
@@ -207,7 +263,7 @@ Ext.define('CustomApp', {
     },
 
     createChart : function (features,releases) {
-        
+
         var ids = _.pluck(features, function(feature) { return feature.get("ObjectID");} );
         var start = _.min(_.pluck(releases,function(r) { return r.get("ReleaseStartDate");}));
         var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
@@ -220,7 +276,7 @@ Ext.define('CustomApp', {
             autoLoad : true,
             pageSize:1000,
             limit: 'Infinity',
-            fetch: ['ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','PercentDoneByStoryCount'],
+            fetch: ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount','PercentDoneByStoryCount'],
             hydrate: ['_TypeHierarchy']
 		};
 
@@ -238,6 +294,7 @@ Ext.define('CustomApp', {
     },
     
     _showChart : function(series) {
+        console.log("series",series);
         var chart = this.down("#chart1");
         myMask.hide();
         if (chart !== null)
@@ -250,6 +307,7 @@ Ext.define('CustomApp', {
         series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
         
         var extChart = Ext.create('Rally.ui.chart.Chart', {
+            columnWidth : 1,
             itemId : "chart1",
             chartData: {
                 categories : series[0].data,
