@@ -13,6 +13,7 @@
 var acceptedCountData = [];
 var myMask = null;
 var app = null;
+var showAssignedProgram = false;
 
 // demonstrate github.com
 
@@ -22,6 +23,7 @@ Ext.define('CustomApp', {
     componentCls: 'app',
     
     layout : 'column',
+    // defaultMargins : { top: 10, right: 20, bottom: 10, left: 10 },
 
     launch: function() {
         app = this;
@@ -57,6 +59,8 @@ Ext.define('CustomApp', {
             // that.projects  = results[1];
             that.releases  = results[1];
             that.iterations = results[2];
+            if (showAssignedProgram)
+                that.createAssignedProgramCombo();
             that.createReleaseCombo(that.releases);
             that.createTypeChooser();
         });
@@ -76,6 +80,15 @@ Ext.define('CustomApp', {
                 }
             }
         });
+    },
+    
+    createAssignedProgramCombo : function() {
+        // assigned Program (if set to true)
+        this.assignedProgramCombo = Ext.create("Rally.ui.combobox.FieldValueComboBox", {
+            model : "PortfolioItem/Feature",
+            field : "AssignedProgram"
+        });
+        this.add(this.assignedProgramCombo);
     },
     
     createTypeChooser : function() {
@@ -108,9 +121,6 @@ Ext.define('CustomApp', {
         
         this.chooser.items.items[0].setValue(true);
         this.add(this.chooser);
-        //this.add(Ext.create('Ext.panel.Panel',{columnWidth:.5}));
-        
-        
     },
 
     // creates a release drop down combo box with the uniq set of release names
@@ -127,7 +137,7 @@ Ext.define('CustomApp', {
         });
         // construct the combo box using the store
         var cb = Ext.create("Ext.ux.CheckCombo", {
-            fieldLabel: 'Release',
+            // fieldLabel: 'Release',
             store: releasesStore,
             queryMode: 'local',
             displayField: 'name',
@@ -316,8 +326,8 @@ Ext.define('CustomApp', {
         // set the tick interval
         var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
 
-        series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
-        
+        // series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
+
         var extChart = Ext.create('Rally.ui.chart.Chart', {
             columnWidth : 1,
             itemId : "chart1",
@@ -345,8 +355,11 @@ Ext.define('CustomApp', {
                     plotLines : plotlines,
                     //tickInterval : 7,
                     tickInterval : tickInterval,
+                    type: 'datetime',
                     labels: {
-                        formatter: function() { var d = new Date(this.value); return ""+(d.getMonth()+1)+"/"+d.getDate(); }
+                        formatter: function() {
+                            return Highcharts.dateFormat('%b %d', Date.parse(this.value));
+                        }
                     }
                 },
                 yAxis: {
