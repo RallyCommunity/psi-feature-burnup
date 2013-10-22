@@ -312,8 +312,10 @@ Ext.define('CustomApp', {
             
         // create plotlines
         var plotlines = this.createPlotLines(series[0].data);
-
         
+        // set the tick interval
+        var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
+
         series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
         
         var extChart = Ext.create('Rally.ui.chart.Chart', {
@@ -341,7 +343,8 @@ Ext.define('CustomApp', {
                 },
                 xAxis: {
                     plotLines : plotlines,
-                    tickInterval : 7,
+                    //tickInterval : 7,
+                    tickInterval : tickInterval,
                     labels: {
                         formatter: function() { var d = new Date(this.value); return ""+(d.getMonth()+1)+"/"+d.getDate(); }
                     }
