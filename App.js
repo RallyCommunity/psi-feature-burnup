@@ -15,6 +15,9 @@ Ext.define('CustomApp', {
     // defaultMargins : { top: 10, right: 20, bottom: 10, left: 10 },
 
     launch: function() {
+        Ext.state.Manager.setProvider(
+            new Ext.state.CookieProvider({ expires: new Date(new Date().getTime()+(10006060247)) })
+        );
         app = this;
         var that = this;
         console.log("launch");
@@ -58,7 +61,7 @@ Ext.define('CustomApp', {
     wsapiQuery : function( config , callback ) {
         Ext.create('Rally.data.WsapiDataStore', {
             autoLoad : true,
-            limit : "infinity",
+            limit : "Infinity",
             model : config.model,
             fetch : config.fetch,
             filters : config.filters,
@@ -75,7 +78,9 @@ Ext.define('CustomApp', {
         // assigned Program (if set to true)
         this.assignedProgramCombo = Ext.create("Rally.ui.combobox.FieldValueComboBox", {
             model : "PortfolioItem/Feature",
-            field : "AssignedProgram"
+            field : "AssignedProgram",
+            stateful : true,
+            stateId : "assignedProgramCombo"
         });
         this.add(this.assignedProgramCombo);
     },
@@ -163,14 +168,26 @@ Ext.define('CustomApp', {
         // get Features for the selected release(s)
         var that = this;
         var filter = null;
-        _.each(releases,function(release,i) {
-            var f = Ext.create('Rally.data.QueryFilter', {
-                property: 'Release.Name',
+        
+        if (showAssignedProgram && this.assignedProgramCombo.getValue() != null && this.assignedProgramCombo.getValue() != "") {
+            console.log("assingedValue",this.assignedProgramCombo.getValue());
+            filter = Ext.create('Rally.data.QueryFilter', {
+                property: 'AssignedProgram',
                 operator: '=',
-                value: release.get("Name")
+                value: this.assignedProgramCombo.getValue()
             });
-            filter = i === 0 ? f : filter.or(f);
-        });
+        } else {
+            _.each(releases,function(release,i) {
+                var f = Ext.create('Rally.data.QueryFilter', {
+                    property: 'Release.Name',
+                    operator: '=',
+                    value: release.get("Name")
+                });
+                filter = i === 0 ? f : filter.or(f);
+            });
+        }
+        console.log("filter",filter.toString());
+        
         
         return Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
@@ -180,6 +197,7 @@ Ext.define('CustomApp', {
             filters: [filter],
             listeners: {
                 load: function(store, features) {
+                    console.log("features",features.length,features);
                     that.createChart(features,releases);
                 }
             }
@@ -194,16 +212,10 @@ Ext.define('CustomApp', {
 
     createChart1 : function ( features, releases,start,end) {
         
-        // console.log("features",features);
-        // var fs = _.filter(features,function(f) { return f.raw._ValidTo.indexOf("9999") !== -1;});
-        // console.log("features",fs.length);
-        // console.log("features",fs);
-        // console.log("features",_.map(fs,function(f) {return f.raw._UnformattedID +":"+ f.raw.AcceptedLeafStoryCount.toString()}));
-
-        
         var that = this;
         var lumenize = window.parent.Rally.data.lookback.Lumenize;
         var snapShotData = _.map(features,function(d){return d.data;});
+        var snaps = _.sortBy(snapShotData,"_UnformattedID");
         // can be used to 'knockout' holidays
         var holidays = [
             {year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
