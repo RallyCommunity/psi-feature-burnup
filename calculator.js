@@ -1,6 +1,9 @@
 Ext.define("MyBurnCalculator", {
    extend: "Rally.data.lookback.calculator.TimeSeriesCalculator",
    
+    pointsOffset : 0,
+    countOffset : 0,
+   
     getMetrics: function () {
         var metrics = [
            {
@@ -70,27 +73,41 @@ Ext.define("MyBurnCalculator", {
         return [
             {as: 'ProjectionPoints', 
             f: function (row, index, summaryMetrics, seriesData) {
+                var that = this;
                 if (index === 0) {
                     datesData = _.pluck(seriesData,"label");
                     var today = new Date();
                     var li = datesData.length-1;
                     acceptedPointsData = _.pluck(seriesData,"Accepted Points");
                     acceptedPointsData = _.filter(acceptedPointsData, function(d,i) { return new Date(Date.parse(datesData[i])) < today; });
+                    
+                    // calculate an offset between the projected value and the actual accepted values.
+                    var lastAccepted = acceptedPointsData[acceptedPointsData.length-1];
+                    var lastProjected = linearProject( acceptedPointsData, acceptedPointsData.length-1);
+                    console.log("last accepted:", lastAccepted, "last projected:",lastProjected);
+                    that.pointsOffset = lastAccepted-lastProjected;    
                 }
-                var y = linearProject( acceptedPointsData, index);
+                var y = linearProject( acceptedPointsData, index) + that.pointsOffset;
                 return Math.round(y * 100) / 100;
             }
           }, 
           {as: 'ProjectionCount', 
             f: function (row, index, summaryMetrics, seriesData) {
+                var that = this;
                 if (index === 0) {
                     datesData = _.pluck(seriesData,"label");
                     var today = new Date();
                     var li = datesData.length-1;
                     acceptedCountData = _.pluck(seriesData,"Accepted Count");
                     acceptedCountData = _.filter(acceptedCountData, function(d,i) { return new Date(Date.parse(datesData[i])) < today; });
+                    // calculate an offset between the projected value and the actual accepted values.
+                    var lastAccepted = acceptedCountData[acceptedCountData.length-1];
+                    var lastProjected = linearProject( acceptedCountData, acceptedCountData.length-1);
+                    console.log("last accepted:", lastAccepted, "last projected:",lastProjected);
+                    that.countOffset = lastAccepted-lastProjected;    
+
                 }
-                var y = linearProject( acceptedCountData, index);
+                var y = linearProject( acceptedCountData, index) + that.countOffset;
                 return Math.round(y * 100) / 100;
             }
           } 
