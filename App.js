@@ -2,7 +2,7 @@ var acceptedPointsData = [];
 var acceptedCountData = [];
 var myMask = null;
 var app = null;
-var showAssignedProgram = false;
+var showAssignedProgram = true;
 
 // demonstrate github.com
 
