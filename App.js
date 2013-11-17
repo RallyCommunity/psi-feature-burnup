@@ -68,6 +68,7 @@ Ext.define('CustomApp', {
             listeners : {
                 scope : this,
                 load : function(store, data) {
+                    console.log("wsapi:",data.length);
                     callback(null,data);
                 }
             }
@@ -286,6 +287,7 @@ Ext.define('CustomApp', {
     createChart : function (features,releases) {
 
         var ids = _.pluck(features, function(feature) { return feature.get("ObjectID");} );
+        console.log("ids:",ids.length);
         var start = _.min(_.pluck(releases,function(r) { return r.get("ReleaseStartDate");}));
         var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
         var isoStart  = Rally.util.DateTime.toIsoString(start, false);
@@ -302,13 +304,14 @@ Ext.define('CustomApp', {
 		};
 
         storeConfig.find['ObjectID'] = { "$in": ids };
-        storeConfig.find['_ProjectHierarchy'] = { "$in": this.project };
+        // storeConfig.find['_ProjectHierarchy'] = { "$in": this.project };
         storeConfig.find['_ValidTo'] = { "$gte" : isoStart  };
         storeConfig.listeners = {
-                scope : this,
-                load: function(store, features, success) {
-                    this.createChart1(features,releases,start,end);
-                }
+            scope : this,
+            load: function(store, features, success) {
+                console.log("feature snapshots:",features.length)
+                this.createChart1(features,releases,start,end);
+            }
         };
         
         var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', storeConfig);
