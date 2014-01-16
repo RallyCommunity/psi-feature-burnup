@@ -26,10 +26,20 @@ Ext.define('CustomApp', {
     // defaultMargins : { top: 10, right: 20, bottom: 10, left: 10 },
 
     launch: function() {
+
+        app = this;
+
         Ext.state.Manager.setProvider(
             new Ext.state.CookieProvider({ expires: new Date(new Date().getTime()+(10006060247)) })
         );
-        app = this;
+
+        console.log(Ext.state.Manager.get("saved_selected_psi_value"));
+
+        app.initialReleaseValue = Ext.state.Manager.get("saved_selected_psi_value") !== undefined ? 
+            Ext.state.Manager.get("saved_selected_psi_value") : "";
+
+
+        
         var that = this;
         console.log("launch");
         // get the project id.
@@ -60,11 +70,11 @@ Ext.define('CustomApp', {
         async.map( configs, this.wsapiQuery, function(err,results) {
             that.peRecords = results[0];
             // that.projects  = results[1];
-            that.releases  = results[1];
+            app.releases  = results[1];
             that.iterations = results[2];
             if (showAssignedProgram)
                 that.createAssignedProgramCombo();
-            that.createReleaseCombo(that.releases);
+            that.createReleaseCombo();
             that.createTypeChooser();
         });
     },
@@ -121,6 +131,11 @@ Ext.define('CustomApp', {
                     name      : 'Type',
                     inputValue: 1,
                     id        : 'radio5',
+                    listeners : {
+                        change : function() { 
+                            app.reload();
+                        }
+                    }
                 }
             ]
         });
@@ -130,10 +145,10 @@ Ext.define('CustomApp', {
     },
 
     // creates a release drop down combo box with the uniq set of release names
-    createReleaseCombo : function(releaseRecords) {
+    createReleaseCombo : function() {
         
         // given a list of all releases (accross sub projects)
-        var releases = _.map( releaseRecords, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID"), releaseDate : new Date(Date.parse(rec.get("ReleaseDate")))};});
+        var releases = _.map( app.releases, function(rec) { return { name : rec.get("Name"), objectid : rec.get("ObjectID"), releaseDate : new Date(Date.parse(rec.get("ReleaseDate")))};});
         // get a unique list by name to display in combobox        
         releases = _.uniq( releases, function (r) { return r.name; });
         releases = _.sortBy( releases, function(rec) {return rec.releaseDate;}).reverse();
@@ -142,38 +157,57 @@ Ext.define('CustomApp', {
             fields: ['name','objectid'], data : releases 
         });
         // construct the combo box using the store
-        var cb = Ext.create("Ext.ux.CheckCombo", {
+        // var cb = Ext.create("Ext.ux.CheckCombo", {
+        app.cb = Ext.create("Ext.ux.CheckCombo", {
             // fieldLabel: 'Release',
             store: releasesStore,
             queryMode: 'local',
             displayField: 'name',
             valueField: 'name',
+            value : app.initialReleaseValue,
             noData : true,
             // width: 300,
             columnWidth: .25,
                 
             listeners : {
                 scope : this,
+                afterrender : function(cb,eOpts) {
+                    console.log("after render");
+                    var releases = _.map( app.initialReleaseValue.split(","), function(r) {
+                        return r;
+                    });
+                    cb.setValue(releases);
+                    if (releases.length > 0)
+                        app.reload();
+                },
                 // after collapsing the list
                 collapse : function ( field, eOpts ) {
-                    var r = [];
-                    // // for each selected release name, select all releases with that name and grab the object id and push it into an 
-                    // // array. The result will be an array of all matching release that we will use to query for snapshots.
-                    _.each( field.getValue().split(","), function (rn) {
-                        var matching_releases = _.filter( releaseRecords, function(r) { return rn == r.get("Name");});
-                        var uniq_releases = _.uniq(matching_releases, function(r) { return r.get("Name"); });
-                        _.each(uniq_releases,function(release) { r.push(release); });
-                    });
-                    if (r.length > 0) {
-                        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
-                        myMask.show();
-                        this.selectedReleases = r;
-                        this.queryFeatures(r);
-                    }
+                    app.reload();
                 }
             }
         });
-        this.add(cb);
+        this.add(app.cb);
+    },
+
+    reload : function() {
+        Ext.state.Manager.set("saved_selected_psi_value",app.cb.getValue());
+
+        console.log(app.cb.getValue());
+        var r = [];
+        // // for each selected release name, select all releases with that name and grab the object id and push it into an 
+        // // array. The result will be an array of all matching release that we will use to query for snapshots.
+        _.each( app.cb.getValue().split(","), function (rn) {
+            var matching_releases = _.filter( app.releases, function(r) { return rn == r.get("Name");});
+            var uniq_releases = _.uniq(matching_releases, function(r) { return r.get("Name"); });
+            _.each(uniq_releases,function(release) { r.push(release); });
+        });
+        if (r.length > 0) {
+            myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+            myMask.show();
+            this.selectedReleases = r;
+            this.queryFeatures(r);
+        }
+
     },
     
     queryFeatures : function(releases) {
@@ -417,6 +451,7 @@ Ext.define('CustomApp', {
     afterExpandCheck: false,
     allText: 'All',
     oldValue: '',
+
     listeners:
     {
 /* uncomment if you want to reload store on every combo expand

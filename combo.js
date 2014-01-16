@@ -12,6 +12,7 @@ Ext.define('Ext.ux.CheckCombo',
     afterExpandCheck: false,
     allText: 'All',
     oldValue: '',
+
     listeners:
     {
 /* uncomment if you want to reload store on every combo expand
