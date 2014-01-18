@@ -4,8 +4,6 @@ var myMask = null;
 var app = null;
 var showAssignedProgram = false;
 
-// demonstrate github.com
-
 Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
@@ -22,15 +20,13 @@ Ext.define('CustomApp', {
             new Ext.state.CookieProvider({ expires: new Date(new Date().getTime()+(10006060247)) })
         );
 
-        console.log(Ext.state.Manager.get("saved_selected_psi_value"));
 
         app.initialReleaseValue = Ext.state.Manager.get("saved_selected_psi_value") !== undefined ? 
             Ext.state.Manager.get("saved_selected_psi_value") : "";
+        app.initialPointsCountValue = Ext.state.Manager.get("saved_selected_pointscount_value") !== undefined ? 
+            Ext.state.Manager.get("saved_selected_pointscount_value") : "";
 
-
-        
         var that = this;
-        console.log("launch");
         // get the project id.
         this.project = this.getContext().getProject().ObjectID;
 
@@ -65,6 +61,7 @@ Ext.define('CustomApp', {
                 that.createAssignedProgramCombo();
             that.createReleaseCombo();
             that.createTypeChooser();
+            
         });
     },
     
@@ -78,7 +75,6 @@ Ext.define('CustomApp', {
             listeners : {
                 scope : this,
                 load : function(store, data) {
-                    console.log("wsapi:",data.length);
                     callback(null,data);
                 }
             }
@@ -99,6 +95,11 @@ Ext.define('CustomApp', {
     createTypeChooser : function() {
         
         this.chooser = Ext.create( 'Ext.form.FieldContainer', {
+            listeners : {
+                afterrender : function() {
+                    app.reload();
+                }
+            },
             columnWidth : .25,
             labelStyle: 'padding-left:10px;',
             fieldLabel : 'Type',
@@ -114,14 +115,14 @@ Ext.define('CustomApp', {
                     name      : 'Type',
                     inputValue: 0,
                     id        : 'radio4',
-                    
                 }, {
                     boxLabel  : 'Count',
                     name      : 'Type',
                     inputValue: 1,
                     id        : 'radio5',
                     listeners : {
-                        change : function() { 
+                        change : function(a,b) {
+                            Ext.state.Manager.set("saved_selected_pointscount_value", b ? "Count" : "Points");
                             app.reload();
                         }
                     }
@@ -129,7 +130,12 @@ Ext.define('CustomApp', {
             ]
         });
         
-        this.chooser.items.items[0].setValue(true);
+        // set the type based on saved value        
+        if ( (app.initialPointsCountValue==="") || (app.initialPointsCountValue==="Points")) 
+            this.chooser.items.items[0].setValue(true);
+        else
+            this.chooser.items.items[1].setValue(true);
+
         this.add(this.chooser);
     },
 
@@ -161,13 +167,12 @@ Ext.define('CustomApp', {
             listeners : {
                 scope : this,
                 afterrender : function(cb,eOpts) {
-                    console.log("after render");
                     var releases = _.map( app.initialReleaseValue.split(","), function(r) {
                         return r;
                     });
                     cb.setValue(releases);
-                    if (releases.length > 0)
-                        app.reload();
+                    // if (releases.length > 0)
+                    //     app.reload();
                 },
                 // after collapsing the list
                 collapse : function ( field, eOpts ) {
@@ -179,9 +184,7 @@ Ext.define('CustomApp', {
     },
 
     reload : function() {
-        Ext.state.Manager.set("saved_selected_psi_value",app.cb.getValue());
 
-        console.log(app.cb.getValue());
         var r = [];
         // // for each selected release name, select all releases with that name and grab the object id and push it into an 
         // // array. The result will be an array of all matching release that we will use to query for snapshots.
@@ -191,6 +194,7 @@ Ext.define('CustomApp', {
             _.each(uniq_releases,function(release) { r.push(release); });
         });
         if (r.length > 0) {
+            Ext.state.Manager.set("saved_selected_psi_value",app.cb.getValue());
             myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
             myMask.show();
             this.selectedReleases = r;
@@ -205,7 +209,6 @@ Ext.define('CustomApp', {
         var filter = null;
         
         if (showAssignedProgram && this.assignedProgramCombo.getValue() != null && this.assignedProgramCombo.getValue() != "") {
-            console.log("assingedValue",this.assignedProgramCombo.getValue());
             filter = Ext.create('Rally.data.QueryFilter', {
                 property: 'AssignedProgram',
                 operator: '=',
@@ -221,8 +224,6 @@ Ext.define('CustomApp', {
                 filter = i === 0 ? f : filter.or(f);
             });
         }
-        console.log("filter",filter.toString());
-        
         
         return Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
@@ -232,7 +233,6 @@ Ext.define('CustomApp', {
             filters: [filter],
             listeners: {
                 load: function(store, features) {
-                    console.log("features",features.length,features);
                     that.createChart(features,releases);
                 }
             }
@@ -241,7 +241,7 @@ Ext.define('CustomApp', {
     
     pointsUnitType : function() {
 
-        return this.chooser.items.items[0].getValue()==true;
+        return this.chooser ? this.chooser.items.items[0].getValue()==true : true;
 
     },
 
@@ -321,7 +321,6 @@ Ext.define('CustomApp', {
     createChart : function (features,releases) {
 
         var ids = _.pluck(features, function(feature) { return feature.get("ObjectID");} );
-        console.log("ids:",ids.length);
         var start = _.min(_.pluck(releases,function(r) { return r.get("ReleaseStartDate");}));
         var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
         var isoStart  = Rally.util.DateTime.toIsoString(start, false);
@@ -343,7 +342,6 @@ Ext.define('CustomApp', {
         storeConfig.listeners = {
             scope : this,
             load: function(store, features, success) {
-                console.log("feature snapshots:",features.length)
                 this.createChart1(features,releases,start,end);
             }
         };
