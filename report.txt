@@ -1,0 +1,16 @@
++-----------------------------------------------------------------+-----+------------+---------------------+
+| File                                                            | LOC | Cyclomatic | Halstead difficulty |
++-----------------------------------------------------------------+-----+------------+---------------------+
+| /users/bmullan/documents/apps/psi-feature-burnup/utility.js     | 9   | 2          | 6                   |
+| /users/bmullan/documents/apps/psi-feature-burnup/line-fitter.js | 29  | 3          | 37                  |
+| /users/bmullan/documents/apps/psi-feature-burnup/calculator.js  | 81  | 5          | 37                  |
+| /users/bmullan/documents/apps/psi-feature-burnup/app.js         | 286 | 11         | 39                  |
+| /users/bmullan/documents/apps/psi-feature-burnup/combo.js       | 172 | 33         | 34                  |
++-----------------------------------------------------------------+-----+------------+---------------------+
+LOC - lines of code (logical, lower is better)
+Cyclomatic - McCabe complexity (lower is better)
+	http://en.wikipedia.org/wiki/Cyclomatic_complexity
+Halstead difficulty (lower is better)
+	http://en.wikipedia.org/wiki/Halstead_complexity_measures
+maintainability (higher is better)
+	http://jscomplexity.org/complexity
