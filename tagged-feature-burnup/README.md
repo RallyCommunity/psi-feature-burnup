@@ -9,9 +9,8 @@ After installing the app (from the deploy directory) edit the App Settings by se
 
 ![alt text](https://raw.github.com/wrackzone/psi-feature-burnup/master/tagged-feature-burnup/doc/settings.png)
 
-[]
 
-Below is a sample chart.
+Sample chart.
 
 ![alt text](https://raw.github.com/wrackzone/psi-feature-burnup/master/tagged-feature-burnup/doc/screenshot.png)
 
