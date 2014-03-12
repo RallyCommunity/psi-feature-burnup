@@ -15,13 +15,6 @@ Ext.define('Ext.ux.CheckCombo',
 
     listeners:
     {
-/* uncomment if you want to reload store on every combo expand
-        beforequery: function(qe)
-        {
-            this.store.removeAll();
-            delete qe.combo.lastQuery;
-        },
-*/
         focus: function(cpt)
         {
             cpt.oldValue = cpt.getValue();

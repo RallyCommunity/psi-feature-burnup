@@ -2,7 +2,7 @@ var acceptedPointsData = [];
 var acceptedCountData = [];
 var myMask = null;
 var app = null;
-var showAssignedProgram = false;
+var showAssignedProgram = true;
 
 Ext.define('CustomApp', {
     scopeType: 'release',
@@ -10,21 +10,24 @@ Ext.define('CustomApp', {
     componentCls: 'app',
     
     layout : 'column',
-    // defaultMargins : { top: 10, right: 20, bottom: 10, left: 10 },
 
     launch: function() {
 
         app = this;
 
+        // create a state provider (cookies)
         Ext.state.Manager.setProvider(
             new Ext.state.CookieProvider({ expires: new Date(new Date().getTime()+(10006060247)) })
         );
 
-
+        // see if there are saved values
         app.initialReleaseValue = Ext.state.Manager.get("saved_selected_psi_value") !== undefined ? 
             Ext.state.Manager.get("saved_selected_psi_value") : "";
         app.initialPointsCountValue = Ext.state.Manager.get("saved_selected_pointscount_value") !== undefined ? 
             Ext.state.Manager.get("saved_selected_pointscount_value") : "";
+        app.initialAssignedProgramValue = Ext.state.Manager.get("saved_selected_assignedprogram_value") !== undefined ? 
+            Ext.state.Manager.get("saved_selected_assignedprogram_value") : "";
+
 
         var that = this;
         // get the project id.
@@ -35,14 +38,11 @@ Ext.define('CustomApp', {
 
         var configs = [];
         
+        // query for estimate values, releases and iterations.
         configs.push({ model : "PreliminaryEstimate", 
                        fetch : ['Name','ObjectID','Value'], 
                        filters : [] 
         });
-        // configs.push({ model : "Project",             
-        //               fetch : ['Name','ObjectID'], 
-        //               filters : [] 
-        // });
         configs.push({ model : "Release",             
                        fetch : ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ], 
                        filters:[] 
@@ -57,14 +57,18 @@ Ext.define('CustomApp', {
             // that.projects  = results[1];
             app.releases  = results[1];
             that.iterations = results[2];
-            if (showAssignedProgram)
+            if (showAssignedProgram) // EMC specific
                 that.createAssignedProgramCombo();
+            // multi-select release dropdown
             that.createReleaseCombo();
+            // chart type (points or counts)
             that.createTypeChooser();
-            
+
+            that.createButton();
         });
     },
-    
+
+    // generic function to perform a web services query    
     wsapiQuery : function( config , callback ) {
         Ext.create('Rally.data.WsapiDataStore', {
             autoLoad : true,
@@ -80,24 +84,46 @@ Ext.define('CustomApp', {
             }
         });
     },
+
+    createButton : function() {
+        this.button = Ext.create('Rally.ui.Button', {
+            text : 'Create Chart',
+            handler : function() {
+                app.reload();
+            }
+        });
+        this.add(this.button);
+    },
     
+    // EMC Specific
     createAssignedProgramCombo : function() {
         // assigned Program (if set to true)
         this.assignedProgramCombo = Ext.create("Rally.ui.combobox.FieldValueComboBox", {
             model : "PortfolioItem/Feature",
-            field : "AssignedProgram",
+            // field : "AssignedProgram",
+            field : "TargetedProgram",
             stateful : true,
-            stateId : "assignedProgramCombo"
+            stateId : "assignedProgramCombo",
+            listeners : {
+                change : function(a,b) {
+                    Ext.state.Manager.set("saved_selected_assignedprogram_value",b);
+                }
+            }
         });
+
+        if ( app.initialAssignedProgramValue!=="" ) 
+            this.assignedProgramCombo.setValue(app.initialAssignedProgramValue);
+
         this.add(this.assignedProgramCombo);
     },
-    
+
+    // The type choose is a radio button to select "Points" or "Count"
     createTypeChooser : function() {
         
         this.chooser = Ext.create( 'Ext.form.FieldContainer', {
             listeners : {
                 afterrender : function() {
-                    app.reload();
+                    // app.reload();
                 }
             },
             columnWidth : .25,
@@ -123,7 +149,7 @@ Ext.define('CustomApp', {
                     listeners : {
                         change : function(a,b) {
                             Ext.state.Manager.set("saved_selected_pointscount_value", b ? "Count" : "Points");
-                            app.reload();
+                            // app.reload();
                         }
                     }
                 }
@@ -167,16 +193,15 @@ Ext.define('CustomApp', {
             listeners : {
                 scope : this,
                 afterrender : function(cb,eOpts) {
+                    // after rendering select saved values in the dropdown
                     var releases = _.map( app.initialReleaseValue.split(","), function(r) {
                         return r;
                     });
                     cb.setValue(releases);
-                    // if (releases.length > 0)
-                    //     app.reload();
                 },
                 // after collapsing the list
                 collapse : function ( field, eOpts ) {
-                    app.reload();
+                    // app.reload();
                 }
             }
         });
@@ -209,8 +234,10 @@ Ext.define('CustomApp', {
         var filter = null;
         
         if (showAssignedProgram && this.assignedProgramCombo.getValue() != null && this.assignedProgramCombo.getValue() != "") {
+            console.log("AssignedProgram:",this.assignedProgramCombo.getValue());
             filter = Ext.create('Rally.data.QueryFilter', {
-                property: 'AssignedProgram',
+                // property: 'AssignedProgram',
+                property: 'TargetedProgram',
                 operator: '=',
                 value: this.assignedProgramCombo.getValue()
             });
@@ -233,6 +260,7 @@ Ext.define('CustomApp', {
             filters: [filter],
             listeners: {
                 load: function(store, features) {
+                    console.log("Loaded:"+features.length," Features.");
                     that.createChart(features,releases);
                 }
             }
@@ -253,7 +281,7 @@ Ext.define('CustomApp', {
         var snaps = _.sortBy(snapShotData,"_UnformattedID");
         // can be used to 'knockout' holidays
         var holidays = [
-            {year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
+            //{year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
         ];
         var myCalc = Ext.create("MyBurnCalculator");
 
@@ -284,6 +312,7 @@ Ext.define('CustomApp', {
                         { name : "Count", type:'column'},
                         { name : "Completed",type:'column'} ];
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
+        console.log("hc",hc);
         
         this._showChart(hc);
     },
@@ -342,6 +371,7 @@ Ext.define('CustomApp', {
         storeConfig.listeners = {
             scope : this,
             load: function(store, features, success) {
+                console.log("Loaded:"+features.length," Snapshots.");
                 this.createChart1(features,releases,start,end);
             }
         };
