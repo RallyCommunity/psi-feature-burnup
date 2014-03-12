@@ -56,7 +56,7 @@ Ext.define('CustomApp', {
 			{
 				name: 'tags',
 				xtype: 'rallytextfield',
-				label : "Comman separated list of tags eg. tag1,tag2,tag3"
+				label : "Comma separated list of tags eg. tag1,tag2,tag3"
 			},
 			{
 				name: 'unittype',

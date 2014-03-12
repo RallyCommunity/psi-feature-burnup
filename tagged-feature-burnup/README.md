@@ -3,6 +3,18 @@ tagged-feature-burnup
 
 ## Overview
 
+The Tagged Feature Burnup chart provides a burnup for a collection of portfolio items with specific tags. 
+
+After installing the app (from the deploy directory) edit the App Settings by selecting the gear icon and selecting "Edit App Settings".
+
+![alt text](https://raw.github.com/wrackzone/psi-feature-burnup/master/tagged-feature-burnup/doc/settings.png)
+
+[]
+
+Below is a sample chart.
+
+![alt text](https://raw.github.com/wrackzone/psi-feature-burnup/master/tagged-feature-burnup/doc/screenshot.png)
+
 
 ## License
 
