@@ -27,10 +27,9 @@ Ext.define('CustomApp', {
 		app.unittype = app.getSetting('unittype');
 
 		if (app.tags[0] == "") {
-			app.tags[0] = "MVP";
-			// console.log("No Tags specified in configuration");
-			// app.add({html:"No Tags specied. Edit the app setting to set Tags to filter on"});
-			// return;
+			console.log("No Tags specified in configuration");
+			app.add({html:"No Tags specied. Edit the app setting to set Tags to filter on"});
+			return;
 		}
 
 		app.mask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
