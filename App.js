@@ -14,7 +14,7 @@ Ext.define('CustomApp', {
     // switch to app configuration from ui selection
     config: {
         defaultSettings: {
-            releases   : "",
+            releases   : "ALM Q1 Feature Release",
             pointsOrCount : "Points"
         }
     },
@@ -68,7 +68,7 @@ Ext.define('CustomApp', {
                        filters: [app.createReleaseFilter(app.configReleases)]
         });
 
-        async.map( configs, this.wsapiQuery, function(err,results) {
+        async.map( configs, app.wsapiQuery, function(err,results) {
 
             app.peRecords = results[0];
             app.releases  = results[1];
@@ -83,7 +83,7 @@ Ext.define('CustomApp', {
             ];
 
             // get the iterations
-            async.map( configs, this.wsapiQuery, function(err,results) {
+            async.map( configs, app.wsapiQuery, function(err,results) {
 
                 app.iterations = results[0];
 
