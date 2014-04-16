@@ -14,7 +14,7 @@ Ext.define('CustomApp', {
     // switch to app configuration from ui selection
     config: {
         defaultSettings: {
-            releases   : "ALM Q1 Feature Release",
+            releases   : "",
             pointsOrCount : "Points"
         }
     },
