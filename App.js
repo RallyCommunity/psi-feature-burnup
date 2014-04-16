@@ -14,7 +14,7 @@ Ext.define('CustomApp', {
     // switch to app configuration from ui selection
     config: {
         defaultSettings: {
-            releases   : "Release 1,Release 2, Release 3 ,Release 4,Release 5",
+            releases   : "",
             pointsOrCount : "Points"
         }
     },
@@ -371,7 +371,7 @@ Ext.define('CustomApp', {
     pointsUnitType : function() {
 
         // return this.chooser ? this.chooser.items.items[0].getValue()==true : true;
-        return app.pointsOrCount === "Points";
+        return app.configPointsOrCount === "Points";
 
     }
 
