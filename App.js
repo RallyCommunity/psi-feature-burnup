@@ -42,6 +42,11 @@ Ext.define('CustomApp', {
         app.configReleases = app.getSetting("releases");
         app.configPointsOrCount = app.getSetting("pointsOrCount");
 
+        if (app.configReleases==="") {
+            this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
+            return;
+        }
+
         var that = this;
         // get the project id.
         this.project = this.getContext().getProject().ObjectID;
