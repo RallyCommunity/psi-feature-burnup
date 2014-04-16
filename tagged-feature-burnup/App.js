@@ -14,6 +14,7 @@ Ext.define('CustomApp', {
 		console.log(app.tags);
 		app.title = "Portfolio Item burnup for tags " + app.tags;
 		app.unittype = app.getSetting('unittype');
+		
 
 		if (app.tags[0] == "") {
 			console.log("No Tags specified in configuration");

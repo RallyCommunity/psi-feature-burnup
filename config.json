@@ -2,10 +2,9 @@
    "name": "psi-feature-burnup",
    "className": "CustomApp",
    "server": "https://rally1.rallydev.com",
-   "sdk": "2.0rc1",
+   "sdk": "2.0rc2",
    "javascript": [
       "App.js",
-      "combo.js",
       "calculator.js",
       "line-fitter.js",
       "utility.js",

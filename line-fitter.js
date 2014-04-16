@@ -40,7 +40,7 @@ function projectToZero( data, x) {
     var start = x;
 
     while ( linearProject(data,start) > 0)
-        start = start + 1
+        start = start + 1;
 
     return start;
 
