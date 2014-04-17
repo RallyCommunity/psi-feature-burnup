@@ -7,7 +7,8 @@ Ext.define("MyBurnCalculator", function() {
         extend: "Rally.data.lookback.calculator.TimeSeriesCalculator",
 
         config : {
-            series : []
+            series : [],
+            ignoreZeroValues : true
         },
 
         constructor:function(config) {
@@ -71,6 +72,14 @@ Ext.define("MyBurnCalculator", function() {
                         return new Date(Date.parse(datesData[i])) < today;
                     }
                 );
+                // remove zero values
+                if (self.ignoreZeroValues===true) {
+                    that.acceptedPointsData[seriesName] = _.filter(
+                        that.acceptedPointsData[seriesName], function(d,i) {
+                            return d !== 0;
+                        }
+                    );
+                }
 
                 // calculate an offset between the projected value and the actual accepted values.
                 var lastAccepted = that.acceptedPointsData[seriesName][that.acceptedPointsData[seriesName].length-1];

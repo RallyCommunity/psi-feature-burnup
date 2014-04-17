@@ -10,38 +10,26 @@ Ext.define('CustomApp', {
     componentCls: 'app',
 
     series : [
-        { name : "PreliminaryEstimate",      description : "Preliminary Estimate",  field : "CalcPreliminaryEstimate", display : "line", f : "sum", color : "Orange" },
-        { name : "StoryPoints" ,             description : "Story Points",          field : "LeafStoryPlanEstimateTotal",   display : "line", f : "sum", color : "DarkGray" },
-        { name : "StoryCount"  ,             description : "Story Count" ,          field : "LeafStoryCount",          display : "line", f : "sum", color : "DarkGray" },
-        { name : "StoryPointsProjection",    description : "Scope Projection",   projectOn : "Story Points", color : "LightGray" },
-        { name : "StoryCountProjection",     description : "Count Projection",   projectOn : "Story Count", color : "LightGray" },
+        { name : "PreliminaryEstimate",      description : "Preliminary Estimate",  field : "CalcPreliminaryEstimate",    display : "line", f : "sum", color : "Orange" },
+        { name : "StoryPoints" ,             description : "Story Points",          field : "LeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "DarkGray" },
+        { name : "StoryCount"  ,             description : "Story Count" ,          field : "LeafStoryCount",             display : "line", f : "sum", color : "DarkGray" },
+        { name : "StoryPointsProjection",    description : "Scope Projection",  projectOn : "Story Points", color : "LightGray" },
+        { name : "StoryCountProjection",     description : "Count Projection",  projectOn : "Story Count",  color : "LightGray" },
         { name : "AcceptedStoryPoints",      description : "Accepted Points",       field : "AcceptedLeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "Green" },
         { name : "AcceptedStoryCount",       description : "Accepted Count",        field : "AcceptedLeafStoryCount",  display : "line", f : "sum", color : "Green" },
-        { name : "AcceptedPointsProjection", description : "Accepted Projection", projectOn : "Accepted Points", color : "LightGray" },
-        { name : "AcceptedCountProjection",  description : "Accepted Count Projection", projectOn : "Accepted Count", color : "LightGray" },
+        { name : "AcceptedPointsProjection", description : "Accepted Projection", projectOn : "Accepted Points",        color : "LightGray" },
+        { name : "AcceptedCountProjection",  description : "Accepted Count Projection", projectOn : "Accepted Count",   color : "LightGray" },
         { name : "FeatureCount",             description : "Feature Count",          field : "ObjectID",                display : "column", f : "count", color : "Blue" },
         { name : "FeatureCountCompleted",    description : "Completed Feature Count",field : "Completed",               display : "column", f : "sum", color : "Green" }
     ],
 
-    defaultValues : function() {
-
-        var obj = {
-            releases      : "2014 Q2",
-            pointsOrCount : "Points"
-        };
-
-        _.each(series,function(s) {
-           obj[s.description] = s.defaultOn;
-        });
-
-        return obj;
-    },
-
     // switch to app configuration from ui selection
     config: {
+
         defaultSettings : {
-            releases                : "2014 Q2",
-            pointsOrCount           : "Points",
+
+            releases                : "",
+            ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
             StoryCount              : false,
@@ -53,7 +41,9 @@ Ext.define('CustomApp', {
             AcceptedCountProjection : false,
             FeatureCount            : false,
             FeatureCountCompleted   : false
+
         }
+
     },
 
     getSettingsFields: function() {
@@ -69,9 +59,9 @@ Ext.define('CustomApp', {
                 label : "Release names to be included (comma seperated)"
             },
             {
-                name: 'pointsOrCount',
-                xtype: 'rallytextfield',
-                label: 'Points or Count'
+                name: 'ignoreZeroValues',
+                xtype: 'rallycheckboxfield',
+                label: 'For projection ignore zero values'
             }
         ];
 
@@ -83,6 +73,7 @@ Ext.define('CustomApp', {
         app = this;
         app.configReleases = app.getSetting("releases");
         app.configPointsOrCount = app.getSetting("pointsOrCount");
+        app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
 
         if (app.configReleases==="") {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
@@ -109,12 +100,22 @@ Ext.define('CustomApp', {
                        fetch : ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ], 
                        filters: [app.createReleaseFilter(app.configReleases)]
         });
+        configs.push({ model : "TypeDefinition",
+                       fetch : true,
+                       filters : [ { property:"Ordinal", operator:"=", value:0} ]
+        });
 
         // get the preliminary estimate type values, and the releases.
         async.map( configs, app.wsapiQuery, function(err,results) {
 
-            app.peRecords = results[0];
-            app.releases  = results[1];
+            app.peRecords   = results[0];
+            app.releases    = results[1];
+            app.featureType = results[2][0].get("TypePath");
+
+            if (app.releases.length===0) {
+                app.add({html:"No Releases found with this name: "+app.configReleases});
+                return;
+            }
 
             configs = [
                 {
@@ -220,7 +221,8 @@ Ext.define('CustomApp', {
 
         return Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
-            model: 'PortfolioItem/Feature',
+//            model: 'PortfolioItem/Feature',
+            model : app.featureType,
             limit : 'Infinity',
             fetch: ['ObjectID','FormattedID' ],
             filters: [filter],
@@ -228,7 +230,12 @@ Ext.define('CustomApp', {
                 load: function(store, features) {
                     console.log("Loaded:"+features.length," Features.");
                     app.features = features;
+                    if (app.features.length === 0) {
+                        app.add({html:"No features in release(s):"+app.releases});
+                        return;
+                    } else {
                     app.queryFeatureSnapshots();
+                    }
                 }
             }
         });        
@@ -276,7 +283,7 @@ Ext.define('CustomApp', {
         var holidays = [
             //{year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
         ];
-        var myCalc = Ext.create("MyBurnCalculator", { series : app.series });
+        var myCalc = Ext.create("MyBurnCalculator", { series : app.series, ignoreZeroValues : app.ignoreZeroValues });
 
         // calculator config
         var config = {
@@ -419,7 +426,7 @@ Ext.define('CustomApp', {
                 chart: {
                 },
                 title: {
-                text: 'PSI Feature Burnup',
+                text: 'PSI Feature Burnup ('+ app.configReleases  +')',
                 x: -20 //center
                 },
                 plotOptions: {
