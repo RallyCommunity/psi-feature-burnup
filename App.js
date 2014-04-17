@@ -231,7 +231,7 @@ Ext.define('CustomApp', {
                     console.log("Loaded:"+features.length," Features.");
                     app.features = features;
                     if (app.features.length === 0) {
-                        app.add({html:"No features in release(s):"+app.releases});
+                        app.add({html:"No features in release(s):"+app.configReleases});
                         return;
                     } else {
                     app.queryFeatureSnapshots();
