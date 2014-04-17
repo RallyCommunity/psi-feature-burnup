@@ -8,19 +8,61 @@ Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
     componentCls: 'app',
-    
-    layout : 'column',
+
+    series : [
+        { name : "PreliminaryEstimate",      description : "Preliminary Estimate",  field : "CalcPreliminaryEstimate", display : "line", f : "sum", color : "Orange" },
+        { name : "StoryPoints" ,             description : "Story Points",          field : "LeafStoryPlanEstimateTotal",   display : "line", f : "sum", color : "DarkGray" },
+        { name : "StoryCount"  ,             description : "Story Count" ,          field : "LeafStoryCount",          display : "line", f : "sum", color : "DarkGray" },
+        { name : "StoryPointsProjection",    description : "Scope Projection",   projectOn : "Story Points", color : "LightGray" },
+        { name : "StoryCountProjection",     description : "Count Projection",   projectOn : "Story Count", color : "LightGray" },
+        { name : "AcceptedStoryPoints",      description : "Accepted Points",       field : "AcceptedLeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "Green" },
+        { name : "AcceptedStoryCount",       description : "Accepted Count",        field : "AcceptedLeafStoryCount",  display : "line", f : "sum", color : "Green" },
+        { name : "AcceptedPointsProjection", description : "Accepted Projection", projectOn : "Accepted Points", color : "LightGray" },
+        { name : "AcceptedCountProjection",  description : "Accepted Count Projection", projectOn : "Accepted Count", color : "LightGray" },
+        { name : "FeatureCount",             description : "Feature Count",          field : "ObjectID",                display : "column", f : "count", color : "Blue" },
+        { name : "FeatureCountCompleted",    description : "Completed Feature Count",field : "Completed",               display : "column", f : "sum", color : "Green" }
+    ],
+
+    defaultValues : function() {
+
+        var obj = {
+            releases      : "2014 Q2",
+            pointsOrCount : "Points"
+        };
+
+        _.each(series,function(s) {
+           obj[s.description] = s.defaultOn;
+        });
+
+        return obj;
+    },
 
     // switch to app configuration from ui selection
     config: {
-        defaultSettings: {
-            releases   : "",
-            pointsOrCount : "Points"
+        defaultSettings : {
+            releases                : "2014 Q2",
+            pointsOrCount           : "Points",
+            PreliminaryEstimate     : true,
+            StoryPoints             : true,
+            StoryCount              : false,
+            StoryPointsProjection   : true,
+            StoryCountProjection    : false,
+            AcceptedStoryPoints     : true,
+            AcceptedStoryCount      : false,
+            AcceptedPointsProjection: true,
+            AcceptedCountProjection : false,
+            FeatureCount            : false,
+            FeatureCountCompleted   : false
         }
     },
 
     getSettingsFields: function() {
-        return [
+
+        var checkValues = _.map(this.series,function(s) {
+            return { name : s.name, xtype : 'rallycheckboxfield', label : s.description};
+        });
+
+        var values = [
             {
                 name: 'releases',
                 xtype: 'rallytextfield',
@@ -32,11 +74,11 @@ Ext.define('CustomApp', {
                 label: 'Points or Count'
             }
         ];
+
+        return values.concat(checkValues);
     },
 
     launch: function() {
-
-        console.log("Launch");
 
         app = this;
         app.configReleases = app.getSetting("releases");
@@ -68,11 +110,11 @@ Ext.define('CustomApp', {
                        filters: [app.createReleaseFilter(app.configReleases)]
         });
 
+        // get the preliminary estimate type values, and the releases.
         async.map( configs, app.wsapiQuery, function(err,results) {
 
             app.peRecords = results[0];
             app.releases  = results[1];
-//            app.iterations = results[2];
 
             configs = [
                 {
@@ -86,21 +128,18 @@ Ext.define('CustomApp', {
             async.map( configs, app.wsapiQuery, function(err,results) {
 
                 app.iterations = results[0];
-
-                console.log("peRecords:",app.peRecords);
-                console.log("releases:",app.releases);
-                console.log("iterations:",app.iterations);
-
                 app.queryFeatures();
 
             });
         });
     },
 
+    // remove leading and trailing spaces
     trimString : function (str) {
         return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
     },
 
+    // creates a filter to return all releases with a specified set of names
     createReleaseFilter : function(releaseNames) {
 
         var filter = null;
@@ -133,7 +172,6 @@ Ext.define('CustomApp', {
         );
 
         return filter;
-
     },
 
     getReleaseExtent : function( releases ) {
@@ -149,6 +187,7 @@ Ext.define('CustomApp', {
 
     // generic function to perform a web services query    
     wsapiQuery : function( config , callback ) {
+
         Ext.create('Rally.data.WsapiDataStore', {
             autoLoad : true,
             limit : "Infinity",
@@ -162,6 +201,7 @@ Ext.define('CustomApp', {
                 }
             }
         });
+
     },
 
     queryFeatures : function() {
@@ -236,7 +276,7 @@ Ext.define('CustomApp', {
         var holidays = [
             //{year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
         ];
-        var myCalc = Ext.create("MyBurnCalculator");
+        var myCalc = Ext.create("MyBurnCalculator", { series : app.series });
 
         // calculator config
         var config = {
@@ -257,19 +297,49 @@ Ext.define('CustomApp', {
         calculator.addSnapshots(snapShotData, startOnISOString, upToDateISOString);
         
         // create a high charts series config object, used to get the hc series data
-        var hcConfig = [{ name : "label" }, 
-                        this.pointsUnitType() ? { name : "Planned Points" } : { name : "Planned Count" }, 
-                        { name : "PreliminaryEstimate"},
-                        this.pointsUnitType() ? { name : "Accepted Points"} : { name : "Accepted Count"},
-                        this.pointsUnitType() ? { name : "ProjectionPoints"}: { name : "ProjectionCount"},
-                        { name : "Count", type:'column'},
-                        { name : "Completed",type:'column'} ];
+        var hcConfig = [{ name : "label" }];
+        _.each( app.series, function(s) {
+            if ( app.getSetting(s.name)===true) {
+                hcConfig.push({
+                   name : s.description, type : s.display
+                });
+            }
+        });
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
+        this.showChart(app.trimHighChartsConfig(hc));
+    },
 
-        this.showChart(hc);
+    trimHighChartsConfig : function(hc) {
+
+        // trim future values
+        var today = new Date();
+        _.each(hc, function(series,i) {
+            // for non-projection values dont chart after today
+            if (series.name.indexOf("Projection")===-1 && series.name.indexOf("label") ===-1 ) {
+                _.each( series.data, function( point , x ){
+                    if ( Date.parse(hc[0].data[x]) > today )
+                        series.data[x] = null;
+                });
+            }
+            // for projection null values before today.
+            if (series.name.indexOf("Projection")!==-1) {
+                _.each( series.data, function( point , x ){
+                    if ( Date.parse(hc[0].data[x]) < today ) {
+                        series.data[x] = null;
+
+                    }
+                });
+                series.color = "#C8C8C8";
+                series.dashStyle = 'dash';
+            }
+
+        });
+
+        return hc;
     },
     
-    createPlotLines : function(seriesData) { 
+    createPlotLines : function(seriesData) {
+
         // filter the iterations
         var start = new Date( Date.parse(seriesData[0]));
         var end   = new Date( Date.parse(seriesData[seriesData.length-1]));
@@ -297,10 +367,29 @@ Ext.define('CustomApp', {
             }; 
         });
         return itPlotLines.concat(rePlotLines);
+
     },
 
-    
+    createColorsArray : function(series) {
+
+        var colors = [];
+
+        _.each( series, function(s,i) {
+            if (i>0) {
+                var as = _.find( app.series, function(a) {
+                    return a.description === s.name;
+                });
+                colors.push(as.color);
+            }
+        });
+
+        return colors;
+
+    },
+
     showChart : function(series) {
+
+        console.log("series",series);
         var that = this;
         var chart = this.down("#chart1");
         myMask.hide();
@@ -322,7 +411,9 @@ Ext.define('CustomApp', {
                 categories : series[0].data,
                 series : series.slice(1, series.length)
             },
-            chartColors: ['Gray', 'Orange', 'Green', 'LightGray', 'Blue','Green'],
+
+//            chartColors: ['Gray', 'Orange', 'LightGray', 'LightGray', 'LightGray', 'Blue','Green'],
+            chartColors : app.createColorsArray(series),
 
             chartConfig : {
                 chart: {
@@ -371,11 +462,10 @@ Ext.define('CustomApp', {
         _.each(elems, function(e) { e.remove(); });
         var elems = p.query("div.x-mask-msg");
         _.each(elems, function(e) { e.remove(); });
+
     },
 
     pointsUnitType : function() {
-
-        // return this.chooser ? this.chooser.items.items[0].getValue()==true : true;
         return app.configPointsOrCount === "Points";
 
     }
