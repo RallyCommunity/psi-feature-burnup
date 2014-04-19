@@ -39,7 +39,7 @@ Ext.define('CustomApp', {
 	config: {
 		defaultSettings: {
 			itemtype : 'Feature',
-			tags     : 'ALM2014Q2-committed',
+			tags     : '',
 			ignoreZeroValues        : true,
 			PreliminaryEstimate     : true,
 			StoryPoints             : true,
