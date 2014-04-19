@@ -56,4 +56,65 @@ function pointsUnitType(type) {
         return type=="Points";
 }
 
+function createSeriesArray() {
+    return [
+        { name : "PreliminaryEstimate",      description : "Preliminary Estimate",  field : "CalcPreliminaryEstimate",    display : "line", f : "sum", color : "Orange" },
+        { name : "StoryPoints" ,             description : "Story Points",          field : "LeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "DarkGray" },
+        { name : "StoryCount"  ,             description : "Story Count" ,          field : "LeafStoryCount",             display : "line", f : "sum", color : "DarkGray" },
+        { name : "StoryPointsProjection",    description : "Scope Projection",  projectOn : "Story Points", color : "LightGray" },
+        { name : "StoryCountProjection",     description : "Count Projection",  projectOn : "Story Count",  color : "LightGray" },
+        { name : "AcceptedStoryPoints",      description : "Accepted Points",       field : "AcceptedLeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "Green" },
+        { name : "AcceptedStoryCount",       description : "Accepted Count",        field : "AcceptedLeafStoryCount",  display : "line", f : "sum", color : "Green" },
+        { name : "AcceptedPointsProjection", description : "Accepted Projection", projectOn : "Accepted Points",        color : "LightGray" },
+        { name : "AcceptedCountProjection",  description : "Accepted Count Projection", projectOn : "Accepted Count",   color : "LightGray" },
+        { name : "FeatureCount",             description : "Feature Count",          field : "ObjectID",                display : "column", f : "count", color : "Blue" },
+        { name : "FeatureCountCompleted",    description : "Completed Feature Count",field : "Completed",               display : "column", f : "sum", color : "Green" }
+    ];
+}
 
+function createColorsArray( series ) {
+
+    var colors = [];
+
+    _.each( series, function(s,i) {
+        if (i>0) {
+            var as = _.find( app.series, function(a) {
+                return a.description === s.name;
+            });
+            colors.push(as.color);
+        }
+    });
+
+    return colors;
+
+}
+
+
+function trimHighChartsConfig(hc) {
+
+    // trim future values
+    var today = new Date();
+    _.each(hc, function(series,i) {
+        // for non-projection values dont chart after today
+        if (series.name.indexOf("Projection")===-1 && series.name.indexOf("label") ===-1 ) {
+            _.each( series.data, function( point , x ){
+                if ( Date.parse(hc[0].data[x]) > today )
+                    series.data[x] = null;
+            });
+        }
+        // for projection null values before today.
+        if (series.name.indexOf("Projection")!==-1) {
+            _.each( series.data, function( point , x ){
+                if ( Date.parse(hc[0].data[x]) < today ) {
+                    series.data[x] = null;
+
+                }
+            });
+//                series.color = "#C8C8C8";
+            series.dashStyle = 'dash';
+        }
+
+    });
+
+    return hc;
+}

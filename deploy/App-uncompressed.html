@@ -20,26 +20,12 @@ Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
 
-    series : [
-        { name : "PreliminaryEstimate",      description : "Preliminary Estimate",  field : "CalcPreliminaryEstimate",    display : "line", f : "sum", color : "Orange" },
-        { name : "StoryPoints" ,             description : "Story Points",          field : "LeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "DarkGray" },
-        { name : "StoryCount"  ,             description : "Story Count" ,          field : "LeafStoryCount",             display : "line", f : "sum", color : "DarkGray" },
-        { name : "StoryPointsProjection",    description : "Scope Projection",  projectOn : "Story Points", color : "LightGray" },
-        { name : "StoryCountProjection",     description : "Count Projection",  projectOn : "Story Count",  color : "LightGray" },
-        { name : "AcceptedStoryPoints",      description : "Accepted Points",       field : "AcceptedLeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "Green" },
-        { name : "AcceptedStoryCount",       description : "Accepted Count",        field : "AcceptedLeafStoryCount",  display : "line", f : "sum", color : "Green" },
-        { name : "AcceptedPointsProjection", description : "Accepted Projection", projectOn : "Accepted Points",        color : "LightGray" },
-        { name : "AcceptedCountProjection",  description : "Accepted Count Projection", projectOn : "Accepted Count",   color : "LightGray" },
-        { name : "FeatureCount",             description : "Feature Count",          field : "ObjectID",                display : "column", f : "count", color : "Blue" },
-        { name : "FeatureCountCompleted",    description : "Completed Feature Count",field : "Completed",               display : "column", f : "sum", color : "Green" }
-    ],
-
     // switch to app configuration from ui selection
     config: {
 
         defaultSettings : {
 
-            releases                : "",
+            releases                : "2014 Q2",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -59,7 +45,7 @@ Ext.define('CustomApp', {
 
     getSettingsFields: function() {
 
-        var checkValues = _.map(this.series,function(s) {
+        var checkValues = _.map(createSeriesArray(),function(s) {
             return { name : s.name, xtype : 'rallycheckboxfield', label : s.description};
         });
 
@@ -82,6 +68,7 @@ Ext.define('CustomApp', {
     launch: function() {
 
         app = this;
+        app.series = createSeriesArray();
         app.configReleases = app.getSetting("releases");
         app.configPointsOrCount = app.getSetting("pointsOrCount");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
@@ -294,7 +281,12 @@ Ext.define('CustomApp', {
         var holidays = [
             //{year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
         ];
-        var myCalc = Ext.create("MyBurnCalculator", { series : app.series, ignoreZeroValues : app.ignoreZeroValues });
+
+        var myCalc = Ext.create("MyBurnCalculator", {
+            series : app.series,
+            ignoreZeroValues : app.ignoreZeroValues,
+            peRecords : app.peRecords
+        });
 
         // calculator config
         var config = {
@@ -324,38 +316,9 @@ Ext.define('CustomApp', {
             }
         });
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
-        this.showChart(app.trimHighChartsConfig(hc));
+        this.showChart( trimHighChartsConfig(hc) );
     },
 
-    trimHighChartsConfig : function(hc) {
-
-        // trim future values
-        var today = new Date();
-        _.each(hc, function(series,i) {
-            // for non-projection values dont chart after today
-            if (series.name.indexOf("Projection")===-1 && series.name.indexOf("label") ===-1 ) {
-                _.each( series.data, function( point , x ){
-                    if ( Date.parse(hc[0].data[x]) > today )
-                        series.data[x] = null;
-                });
-            }
-            // for projection null values before today.
-            if (series.name.indexOf("Projection")!==-1) {
-                _.each( series.data, function( point , x ){
-                    if ( Date.parse(hc[0].data[x]) < today ) {
-                        series.data[x] = null;
-
-                    }
-                });
-                series.color = "#C8C8C8";
-                series.dashStyle = 'dash';
-            }
-
-        });
-
-        return hc;
-    },
-    
     createPlotLines : function(seriesData) {
 
         // filter the iterations
@@ -388,23 +351,6 @@ Ext.define('CustomApp', {
 
     },
 
-    createColorsArray : function(series) {
-
-        var colors = [];
-
-        _.each( series, function(s,i) {
-            if (i>0) {
-                var as = _.find( app.series, function(a) {
-                    return a.description === s.name;
-                });
-                colors.push(as.color);
-            }
-        });
-
-        return colors;
-
-    },
-
     showChart : function(series) {
 
         console.log("series",series);
@@ -431,7 +377,7 @@ Ext.define('CustomApp', {
             },
 
 //            chartColors: ['Gray', 'Orange', 'LightGray', 'LightGray', 'LightGray', 'Blue','Green'],
-            chartColors : app.createColorsArray(series),
+            chartColors : createColorsArray(series),
 
             chartConfig : {
                 chart: {
@@ -500,7 +446,9 @@ Ext.define('CustomApp', {
 
         config : {
             series : [],
-            ignoreZeroValues : true
+            ignoreZeroValues : true,
+            peRecords : []
+
         },
 
         constructor:function(config) {
@@ -511,7 +459,8 @@ Ext.define('CustomApp', {
 
         pointsOffset : [],
         countOffset : [],
-        acceptedPointsData : [],
+        data : [],
+        indexOffset : [],
 
         getMetrics: function () {
 
@@ -538,7 +487,7 @@ Ext.define('CustomApp', {
                 {
                     as: 'CalcPreliminaryEstimate',
                     f:  function(row) {
-                        var r = _.find(app.peRecords, function(rec) { return rec.get("ObjectID") == row.PreliminaryEstimate; });
+                        var r = _.find(self.peRecords, function(rec) { return rec.get("ObjectID") == row.PreliminaryEstimate; });
                         return r !== undefined ? r.get("Value") : 0;
                     }
                 },
@@ -552,33 +501,44 @@ Ext.define('CustomApp', {
         },
 
         calcProjectionPoint : function(seriesName,row, index, summaryMetrics, seriesData) {
+
             var that = this;
+
+            // for first point we save the data set on which we are going to do the linear projection on
+            // we also optionally filter out values.
             if (index === 0) {
                 datesData = _.pluck(seriesData,"label");
                 var today = new Date();
                 var li = datesData.length-1;
 
-                that.acceptedPointsData[seriesName] = _.pluck(seriesData,seriesName);
-                that.acceptedPointsData[seriesName] = _.filter(
-                    that.acceptedPointsData[seriesName], function(d,i) {
+                that.data[seriesName] = _.pluck(seriesData,seriesName);
+                // filter to just values before today
+                that.data[seriesName] = _.filter(
+                    that.data[seriesName], function(d,i) {
                         return new Date(Date.parse(datesData[i])) < today;
                     }
                 );
-                // remove zero values
+                // optionally remove zero values
+                var dx = that.data[seriesName].length;
                 if (self.ignoreZeroValues===true) {
-                    that.acceptedPointsData[seriesName] = _.filter(
-                        that.acceptedPointsData[seriesName], function(d,i) {
+                    that.data[seriesName] = _.filter(
+                        that.data[seriesName], function(d,i) {
                             return d !== 0;
                         }
                     );
                 }
+                // if we do remove values from the data set then we need to save an offset
+                // so we are calculating the projection on the revised length
+                var dy = that.data[seriesName].length;
+                that.indexOffset[seriesName] = dx - dy;
 
                 // calculate an offset between the projected value and the actual accepted values.
-                var lastAccepted = that.acceptedPointsData[seriesName][that.acceptedPointsData[seriesName].length-1];
-                var lastProjected = linearProject( that.acceptedPointsData[seriesName], that.acceptedPointsData[seriesName].length-1);
+                var lastAccepted = that.data[seriesName][that.data[seriesName].length-1];
+                var lastProjected = linearProject( that.data[seriesName], that.data[seriesName].length-1);
                 that.pointsOffset[seriesName] = lastAccepted-lastProjected;
             }
-            var y = linearProject( that.acceptedPointsData[seriesName], index) + that.pointsOffset[seriesName];
+            index = index - that.indexOffset[seriesName];
+            var y = linearProject( that.data[seriesName], index) + that.pointsOffset[seriesName];
             return Math.round(y * 100) / 100;
         },
 
@@ -715,7 +675,68 @@ function pointsUnitType(type) {
         return type=="Points";
 }
 
+function createSeriesArray() {
+    return [
+        { name : "PreliminaryEstimate",      description : "Preliminary Estimate",  field : "CalcPreliminaryEstimate",    display : "line", f : "sum", color : "Orange" },
+        { name : "StoryPoints" ,             description : "Story Points",          field : "LeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "DarkGray" },
+        { name : "StoryCount"  ,             description : "Story Count" ,          field : "LeafStoryCount",             display : "line", f : "sum", color : "DarkGray" },
+        { name : "StoryPointsProjection",    description : "Scope Projection",  projectOn : "Story Points", color : "LightGray" },
+        { name : "StoryCountProjection",     description : "Count Projection",  projectOn : "Story Count",  color : "LightGray" },
+        { name : "AcceptedStoryPoints",      description : "Accepted Points",       field : "AcceptedLeafStoryPlanEstimateTotal", display : "line", f : "sum", color : "Green" },
+        { name : "AcceptedStoryCount",       description : "Accepted Count",        field : "AcceptedLeafStoryCount",  display : "line", f : "sum", color : "Green" },
+        { name : "AcceptedPointsProjection", description : "Accepted Projection", projectOn : "Accepted Points",        color : "LightGray" },
+        { name : "AcceptedCountProjection",  description : "Accepted Count Projection", projectOn : "Accepted Count",   color : "LightGray" },
+        { name : "FeatureCount",             description : "Feature Count",          field : "ObjectID",                display : "column", f : "count", color : "Blue" },
+        { name : "FeatureCountCompleted",    description : "Completed Feature Count",field : "Completed",               display : "column", f : "sum", color : "Green" }
+    ];
+}
 
+function createColorsArray( series ) {
+
+    var colors = [];
+
+    _.each( series, function(s,i) {
+        if (i>0) {
+            var as = _.find( app.series, function(a) {
+                return a.description === s.name;
+            });
+            colors.push(as.color);
+        }
+    });
+
+    return colors;
+
+}
+
+
+function trimHighChartsConfig(hc) {
+
+    // trim future values
+    var today = new Date();
+    _.each(hc, function(series,i) {
+        // for non-projection values dont chart after today
+        if (series.name.indexOf("Projection")===-1 && series.name.indexOf("label") ===-1 ) {
+            _.each( series.data, function( point , x ){
+                if ( Date.parse(hc[0].data[x]) > today )
+                    series.data[x] = null;
+            });
+        }
+        // for projection null values before today.
+        if (series.name.indexOf("Projection")!==-1) {
+            _.each( series.data, function( point , x ){
+                if ( Date.parse(hc[0].data[x]) < today ) {
+                    series.data[x] = null;
+
+                }
+            });
+//                series.color = "#C8C8C8";
+            series.dashStyle = 'dash';
+        }
+
+    });
+
+    return hc;
+}
 
 
             Rally.launchApp('CustomApp', {
