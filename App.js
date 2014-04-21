@@ -4,7 +4,6 @@ var myMask = null;
 var app = null;
 var showAssignedProgram = true;
 
-var xyz = 100;
 
 Ext.define('CustomApp', {
     scopeType: 'release',
