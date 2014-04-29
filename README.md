@@ -25,6 +25,8 @@ There is a tag version of this chart in the Tagged-feature-burnup directory.
 ![psi-feature-burnup](https://raw.githubusercontent.com/wrackzone/psi-feature-burnup/master/psi-feature-burnup-screenshot.png)
 
 
+![psi-feature-burnup](https://raw.githubusercontent.com/wrackzone/psi-feature-burnup/master/screenshot2.png)
+
 ## License
 
 AppTemplate is released under the MIT license.  See the file [LICENSE](https://raw.github.com/RallyApps/AppTemplate/master/LICENSE) for the full text.
