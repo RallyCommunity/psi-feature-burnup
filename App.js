@@ -17,7 +17,7 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
 
-            releases                : "",
+            releases                : "ART01 - PSI01",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -130,6 +130,8 @@ Ext.define('CustomApp', {
         return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
     },
 
+
+
     // creates a filter to return all releases with a specified set of names
     createReleaseFilter : function(releaseNames) {
 
@@ -235,11 +237,11 @@ Ext.define('CustomApp', {
 
         var ids = _.pluck(app.features, function(feature) { return feature.get("ObjectID");} );
         var extent = app.getReleaseExtent(app.releases);
-
+        console.log("ids",ids);
 
         var storeConfig = {
             find : {
-                '_TypeHierarchy' : { "$in" : ["PortfolioItem/Feature"] },
+                // '_TypeHierarchy' : { "$in" : ["PortfolioItem/PIFTeam"] },
                 'ObjectID' : { "$in" : ids },
                 '_ValidTo' : { "$gte" : extent.isoStart }
             },

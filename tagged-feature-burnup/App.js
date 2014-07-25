@@ -7,8 +7,25 @@ Ext.define('CustomApp', {
 
 	launch: function() {
 
+		var workspace = (this.getContext().getWorkspace());
+console.log ('foo');
+		Rally.data.ModelFactory.getModel({
+		    type: 'Workspace',
+		    success: function(model) {
+		        model.load(workspace.ObjectID, {
+			    fetch: true,
+				    callback: function(result, operation) {
+				        if(operation.wasSuccessful()) {
+				            console.log("workspace result",result);
+				        }
+				    }
+				});
+			}
+		});
+
 		app = this;
 		app.series = createSeriesArray();
+		console.log("series",app.series);
 		app.itemtype = app.getSetting('itemtype');
 		app.tags = app.getSetting('tags') .split(",");
 		console.log(app.tags);
@@ -39,17 +56,17 @@ Ext.define('CustomApp', {
 	config: {
 		defaultSettings: {
 			itemtype : 'Feature',
-			tags     : '',
+			tags     : 'MVP',
 			ignoreZeroValues        : true,
 			PreliminaryEstimate     : true,
-			StoryPoints             : true,
-			StoryCount              : false,
-			StoryPointsProjection   : true,
-			StoryCountProjection    : false,
-			AcceptedStoryPoints     : true,
-			AcceptedStoryCount      : false,
-			AcceptedPointsProjection: true,
-			AcceptedCountProjection : false,
+			StoryPoints             : false,
+			StoryCount              : true,
+			StoryPointsProjection   : false,
+			StoryCountProjection    : true,
+			AcceptedStoryPoints     : false,
+			AcceptedStoryCount      : true,
+			AcceptedPointsProjection: false,
+			AcceptedCountProjection : true,
 			FeatureCount            : false,
 			FeatureCountCompleted   : false
 		}
@@ -196,7 +213,7 @@ Ext.define('CustomApp', {
 			}
 		});
 		var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
-
+		console.log("hc",hc);
 		callback(null, trimHighChartsConfig(hc));
 	},
 
@@ -254,7 +271,8 @@ Ext.define('CustomApp', {
 				},
 				yAxis: {
 					title: {
-						text: app.unittype
+						// text: app.unittype
+						text : "Points\\Count"
 					},
 					plotLines: [{
 						value: 0,

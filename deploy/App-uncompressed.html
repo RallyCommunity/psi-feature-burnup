@@ -3,7 +3,7 @@
 <head>
     <title>psi-feature-burnup</title>
 
-    <script type="text/javascript" src="/apps/2.0rc2/sdk.js"></script>
+    <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
     <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/async/1.22/async.min.js"></script>
 
@@ -15,6 +15,9 @@ var myMask = null;
 var app = null;
 var showAssignedProgram = true;
 
+
+var xyz = 100;
+
 Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
@@ -25,7 +28,7 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
 
-            releases                : "",
+            releases                : "Release 1.0 (October)",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -750,15 +753,26 @@ function trimHighChartsConfig(hc) {
 
     <style type="text/css">
         .app {
-     /* Add app styles here */
+  /* Add app styles here */
 }
-
-/* check combo */ 
-.x-combo-checker { background-position: 50% -2px; margin-left: 1px; background-color: transparent; background-image: url("https://rally1.rallydev.com/apps/2.0rc1/lib/ext/4.1.1a/resources/themes/images/default/grid/unchecked.gif"); background-position: -1px -1px; background-repeat: no-repeat; height: 14px; width: 14px; display: inline-block; } 
-.x-boundlist-selected .x-combo-checker { background-image: url("https://rally1.rallydev.com/apps/2.0rc1/lib/ext/4.1.1a/resources/themes/images/default/grid/checked.gif"); }
-
+/* check combo */
+.x-combo-checker {
+  background-position: 50% -2px;
+  margin-left: 1px;
+  background-color: transparent;
+  background-image: url("https://rally1.rallydev.com/apps/2.0rc1/lib/ext/4.1.1a/resources/themes/images/default/grid/unchecked.gif");
+  background-position: -1px -1px;
+  background-repeat: no-repeat;
+  height: 14px;
+  width: 14px;
+  display: inline-block;
+}
+.x-boundlist-selected .x-combo-checker {
+  background-image: url("https://rally1.rallydev.com/apps/2.0rc1/lib/ext/4.1.1a/resources/themes/images/default/grid/checked.gif");
+}
 
     </style>
 </head>
-<body></body>
+<body>
+</body>
 </html>
