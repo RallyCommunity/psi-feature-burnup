@@ -17,7 +17,7 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
 
-            releases                : "ART01 - PSI01",
+            releases                : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
