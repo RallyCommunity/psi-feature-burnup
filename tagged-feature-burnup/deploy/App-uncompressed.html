@@ -18,8 +18,25 @@ Ext.define('CustomApp', {
 
 	launch: function() {
 
+		var workspace = (this.getContext().getWorkspace());
+console.log ('foo');
+		Rally.data.ModelFactory.getModel({
+		    type: 'Workspace',
+		    success: function(model) {
+		        model.load(workspace.ObjectID, {
+			    fetch: true,
+				    callback: function(result, operation) {
+				        if(operation.wasSuccessful()) {
+				            console.log("workspace result",result);
+				        }
+				    }
+				});
+			}
+		});
+
 		app = this;
 		app.series = createSeriesArray();
+		console.log("series",app.series);
 		app.itemtype = app.getSetting('itemtype');
 		app.tags = app.getSetting('tags') .split(",");
 		console.log(app.tags);
@@ -50,17 +67,17 @@ Ext.define('CustomApp', {
 	config: {
 		defaultSettings: {
 			itemtype : 'Feature',
-			tags     : '',
+			tags     : 'MVP',
 			ignoreZeroValues        : true,
 			PreliminaryEstimate     : true,
-			StoryPoints             : true,
-			StoryCount              : false,
-			StoryPointsProjection   : true,
-			StoryCountProjection    : false,
-			AcceptedStoryPoints     : true,
-			AcceptedStoryCount      : false,
-			AcceptedPointsProjection: true,
-			AcceptedCountProjection : false,
+			StoryPoints             : false,
+			StoryCount              : true,
+			StoryPointsProjection   : false,
+			StoryCountProjection    : true,
+			AcceptedStoryPoints     : false,
+			AcceptedStoryCount      : true,
+			AcceptedPointsProjection: false,
+			AcceptedCountProjection : true,
 			FeatureCount            : false,
 			FeatureCountCompleted   : false
 		}
@@ -207,7 +224,7 @@ Ext.define('CustomApp', {
 			}
 		});
 		var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
-
+		console.log("hc",hc);
 		callback(null, trimHighChartsConfig(hc));
 	},
 
@@ -265,7 +282,8 @@ Ext.define('CustomApp', {
 				},
 				yAxis: {
 					title: {
-						text: app.unittype
+						// text: app.unittype
+						text : "Points\\Count"
 					},
 					plotLines: [{
 						value: 0,
@@ -366,12 +384,14 @@ Ext.define('CustomApp', {
                 var li = datesData.length-1;
 
                 that.data[seriesName] = _.pluck(seriesData,seriesName);
+                if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // filter to just values before today
                 that.data[seriesName] = _.filter(
                     that.data[seriesName], function(d,i) {
                         return new Date(Date.parse(datesData[i])) < today;
                     }
                 );
+                if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // optionally remove zero values
                 var dx = that.data[seriesName].length;
                 if (self.ignoreZeroValues===true) {
@@ -381,6 +401,7 @@ Ext.define('CustomApp', {
                         }
                     );
                 }
+                if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // if we do remove values from the data set then we need to save an offset
                 // so we are calculating the projection on the revised length
                 var dy = that.data[seriesName].length;
@@ -389,6 +410,8 @@ Ext.define('CustomApp', {
                 // calculate an offset between the projected value and the actual accepted values.
                 var lastAccepted = that.data[seriesName][that.data[seriesName].length-1];
                 var lastProjected = linearProject( that.data[seriesName], that.data[seriesName].length-1);
+                if (seriesName==="Story Points")
+                    console.log("la",lastAccepted,"lp",lastProjected);
                 that.pointsOffset[seriesName] = lastAccepted-lastProjected;
             }
             index = index - that.indexOffset[seriesName];
@@ -604,10 +627,11 @@ function trimHighChartsConfig(hc) {
 
     <style type="text/css">
         .app {
-     /* Add app styles here */
+  /* Add app styles here */
 }
 
     </style>
 </head>
-<body></body>
+<body>
+</body>
 </html>

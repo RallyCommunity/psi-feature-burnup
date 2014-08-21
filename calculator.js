@@ -74,12 +74,14 @@ Ext.define("MyBurnCalculator", function() {
                 var li = datesData.length-1;
 
                 that.data[seriesName] = _.pluck(seriesData,seriesName);
+                if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // filter to just values before today
                 that.data[seriesName] = _.filter(
                     that.data[seriesName], function(d,i) {
                         return new Date(Date.parse(datesData[i])) < today;
                     }
                 );
+                if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // optionally remove zero values
                 var dx = that.data[seriesName].length;
                 if (self.ignoreZeroValues===true) {
@@ -89,6 +91,7 @@ Ext.define("MyBurnCalculator", function() {
                         }
                     );
                 }
+                if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // if we do remove values from the data set then we need to save an offset
                 // so we are calculating the projection on the revised length
                 var dy = that.data[seriesName].length;
@@ -97,6 +100,8 @@ Ext.define("MyBurnCalculator", function() {
                 // calculate an offset between the projected value and the actual accepted values.
                 var lastAccepted = that.data[seriesName][that.data[seriesName].length-1];
                 var lastProjected = linearProject( that.data[seriesName], that.data[seriesName].length-1);
+                if (seriesName==="Story Points")
+                    console.log("la",lastAccepted,"lp",lastProjected);
                 that.pointsOffset[seriesName] = lastAccepted-lastProjected;
             }
             index = index - that.indexOffset[seriesName];
