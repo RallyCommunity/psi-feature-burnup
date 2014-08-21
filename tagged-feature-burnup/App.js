@@ -56,7 +56,7 @@ console.log ('foo');
 	config: {
 		defaultSettings: {
 			itemtype : 'Feature',
-			tags     : 'MVP',
+			tags     : '',
 			ignoreZeroValues        : true,
 			PreliminaryEstimate     : true,
 			StoryPoints             : false,
