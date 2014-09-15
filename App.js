@@ -1,35 +1,78 @@
-var acceptedPointsData = [];
-var acceptedCountData = [];
-var myMask = null;
 var app = null;
-var showAssignedProgram = true;
 
 Ext.define('CustomApp', {
-    scopeType: 'release',
     extend: 'Rally.app.App',
     componentCls: 'app',
+    items:{ },
 
-    // switch to app configuration from ui selection
-    config: {
+    launch: function() {
 
-        defaultSettings : {
+        var workspace = (this.getContext().getWorkspace());
 
-            releases                : "Release 1.0. (October)",
-            ignoreZeroValues        : true,
-            PreliminaryEstimate     : true,
-            StoryPoints             : true,
-            StoryCount              : false,
-            StoryPointsProjection   : true,
-            StoryCountProjection    : false,
-            AcceptedStoryPoints     : true,
-            AcceptedStoryCount      : false,
-            AcceptedPointsProjection: true,
-            AcceptedCountProjection : false,
-            FeatureCount            : false,
-            FeatureCountCompleted   : false
+        Rally.data.ModelFactory.getModel({
+            type: 'Workspace',
+            success: function(model) {
+                model.load(workspace.ObjectID, {
+                fetch: true,
+                    callback: function(result, operation) {
+                        if(operation.wasSuccessful()) {
+                            console.log("workspace result",result);
+                        }
+                    }
+                });
+            }
+        });
 
+        app = this;
+        app.series = createSeriesArray();
+        console.log("series",app.series);
+        app.itemtype = app.getSetting('itemtype');
+        app.tags = app.getSetting('tags') .split(",");
+        console.log(app.tags);
+        app.title = "Portfolio Item burnup for tags '" + app.tags + "'";
+
+        if (app.tags[0] === "") {
+            console.log("No Tags specified in configuration");
+            app.add({html:"No Tags specied. Edit the app setting to set Tags to filter on"});
+            return;
         }
 
+        app.mask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+        app.mask.show();
+        async.waterfall([
+            app.queryEstimateValues,
+            app.queryFeatures,
+            app.getStartAndEndDates,
+            app.querySnapshots,
+            app.lumenize,
+            app.showChart
+        ], function(err,results){
+            if (err !== null) {
+                app.add({html:err});
+            }   
+            console.log("done!");
+            app.mask.hide();
+        });
+
+    },
+
+    config: {
+        defaultSettings: {
+            itemtype : 'Feature',
+            tags     : '',
+            ignoreZeroValues        : true,
+            PreliminaryEstimate     : true,
+            StoryPoints             : false,
+            StoryCount              : true,
+            StoryPointsProjection   : false,
+            StoryCountProjection    : true,
+            AcceptedStoryPoints     : false,
+            AcceptedStoryCount      : true,
+            AcceptedPointsProjection: false,
+            AcceptedCountProjection : true,
+            FeatureCount            : false,
+            FeatureCountCompleted   : false
+        }
     },
 
     getSettingsFields: function() {
@@ -38,237 +81,112 @@ Ext.define('CustomApp', {
             return { name : s.name, xtype : 'rallycheckboxfield', label : s.description};
         });
 
-        var values = [
+        return [
             {
-                name: 'releases',
+                name: 'itemtype',
                 xtype: 'rallytextfield',
-                label : "Release names to be included (comma seperated)"
+                label : "Portfolio Item Type eg. Feature"
+            },
+            {
+                name: 'tags',
+                xtype: 'rallytextfield',
+                label : "Comma separated list of tags eg. tag1,tag2,tag3"
             },
             {
                 name: 'ignoreZeroValues',
                 xtype: 'rallycheckboxfield',
                 label: 'For projection ignore zero values'
             }
-        ];
-
-        return values.concat(checkValues);
+        ].concat(checkValues);
     },
 
-    launch: function() {
-
-        app = this;
-        app.series = createSeriesArray();
-        app.configReleases = app.getSetting("releases");
-        app.configPointsOrCount = app.getSetting("pointsOrCount");
-        app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
-
-        if (app.configReleases==="") {
-            this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
-            return;
-        }
-
-        var that = this;
-        // get the project id.
-        this.project = this.getContext().getProject().ObjectID;
-
-        // get the release (if on a page scoped to the release)
-        var tbName = getReleaseTimeBox(this);
-        // release selected page will over-ride app config
-        app.configReleases = tbName !== "" ? tbName : app.configReleases;
+    queryEstimateValues : function(callback) {
 
         var configs = [];
-        
-        // query for estimate values, releases and iterations.
         configs.push({ model : "PreliminaryEstimate", 
-                       fetch : ['Name','ObjectID','Value'], 
-                       filters : [] 
-        });
-        configs.push({ model : "Release",             
-                       fetch : ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ], 
-                       filters: [app.createReleaseFilter(app.configReleases)]
-        });
-        configs.push({ model : "TypeDefinition",
-                       fetch : true,
-                       filters : [ { property:"Ordinal", operator:"=", value:0} ]
+                        fetch : ['Name','ObjectID','Value'],
+                        filters : []
         });
 
-        // get the preliminary estimate type values, and the releases.
-        async.map( configs, app.wsapiQuery, function(err,results) {
-
-            app.peRecords   = results[0];
-            app.releases    = results[1];
-            app.featureType = results[2][0].get("TypePath");
-
-            if (app.releases.length===0) {
-                app.add({html:"No Releases found with this name: "+app.configReleases});
-                return;
-            }
-
-            configs = [
-                {
-                    model  : "Iteration",
-                    fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
-                    filters: app.createIterationFilter(app.releases)
-                }
-            ];
-
-            // get the iterations
-            async.map( configs, app.wsapiQuery, function(err,results) {
-
-                app.iterations = results[0];
-                app.queryFeatures();
-
-            });
+        async.map( configs, wsapiQuery, function(err,results) {
+            console.log("Estimates",results[0]);
+            app.peRecords = results[0];
+            callback(null);
         });
+
+
     },
 
-    // remove leading and trailing spaces
-    trimString : function (str) {
-        return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
-    },
-
-
-
-    // creates a filter to return all releases with a specified set of names
-    createReleaseFilter : function(releaseNames) {
-
+    queryFeatures : function(callback) {
+        console.log("queryFeatures");
+        var configs = [];
         var filter = null;
 
-        _.each( releaseNames.split(","), function( releaseName, i ) {
-            if (releaseName !== "") {
-                var f = Ext.create('Rally.data.wsapi.Filter', {
-                        property : 'Name', operator : '=', value : app.trimString(releaseName) }
-                );
-                filter = (i===0) ? f : filter.or(f);
-            }
+        _.each(app.tags,function(tag,i){
+            var f = Ext.create('Rally.data.QueryFilter',
+                { property: 'Tags.Name', operator: '=',value: tag }
+            );
+
+            filter = (i===0) ? f : filter.or(f);
         });
 
-        console.log("Release Filter:",filter.toString());
-        return filter;
-
-    },
-
-    createIterationFilter : function(releases) {
-
-        var extent = app.getReleaseExtent(releases);
-
-        var filter = Ext.create('Rally.data.wsapi.Filter', {
-            property : 'EndDate', operator: ">=", value: extent.isoStart
+        configs.push({ model : "PortfolioItem/"+app.itemtype,
+                        fetch : ['Name', 'ObjectID', 'PlannedStartDate','PlannedEndDate' ],
+                        filters:[filter]
         });
-
-        filter = filter.and( Ext.create('Rally.data.wsapi.Filter', {
-                property : 'EndDate', operator: "<=", value: extent.isoEnd
-            })
-        );
-
-        return filter;
-    },
-
-    getReleaseExtent : function( releases ) {
-
-        var start = _.min(_.pluck(releases,function(r) { return r.get("ReleaseStartDate");}));
-        var end   = _.max(_.pluck(releases,function(r) { return r.get("ReleaseDate");}));
-        var isoStart  = Rally.util.DateTime.toIsoString(start, false);
-        var isoEnd    = Rally.util.DateTime.toIsoString(end, false);
-
-        return { start : start, end : end, isoStart : isoStart, isoEnd : isoEnd };
-
-    },
-
-    // generic function to perform a web services query    
-    wsapiQuery : function( config , callback ) {
-
-        Ext.create('Rally.data.WsapiDataStore', {
-            autoLoad : true,
-            limit : "Infinity",
-            model : config.model,
-            fetch : config.fetch,
-            filters : config.filters,
-            listeners : {
-                scope : this,
-                load : function(store, data) {
-                    callback(null,data);
-                }
-            }
-        });
-
-    },
-
-    queryFeatures : function() {
-
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
-        var filter = null;
-
-        _.each( app.releases , function( release, i ) {
-            var f = Ext.create('Rally.data.QueryFilter', {
-                property: 'Release',
-                operator: '=',
-                value: release.get("_ref")
-            });
-            filter = i === 0 ? f : filter.or(f);
-        });
-
-        return Ext.create('Rally.data.WsapiDataStore', {
-            autoLoad: true,
-//            model: 'PortfolioItem/Feature',
-            model : app.featureType,
-            limit : 'Infinity',
-            fetch: ['ObjectID','FormattedID' ],
-            filters: [filter],
-            listeners: {
-                load: function(store, features) {
-                    console.log("Loaded:"+features.length," Features.");
-                    app.features = features;
-                    if (app.features.length === 0) {
-                        app.add({html:"No features in release(s):"+app.configReleases});
-                        return;
-                    } else {
-                    app.queryFeatureSnapshots();
-                    }
-                }
-            }
-        });        
-    },
-    
-    queryFeatureSnapshots : function () {
-
-        var ids = _.pluck(app.features, function(feature) { return feature.get("ObjectID");} );
-        var extent = app.getReleaseExtent(app.releases);
-        console.log("ids",ids);
-
-        var storeConfig = {
-            find : {
-                // '_TypeHierarchy' : { "$in" : ["PortfolioItem/PIFTeam"] },
-                'ObjectID' : { "$in" : ids },
-                '_ValidTo' : { "$gte" : extent.isoStart }
-            },
-            autoLoad : true,
-            pageSize:1000,
-            limit: 'Infinity',
-            fetch: ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount','PercentDoneByStoryCount'],
-            hydrate: ['_TypeHierarchy']
-        };
-
-        storeConfig.listeners = {
-            scope : this,
-            load: function(store, snapshots, success) {
-                console.log("Loaded:"+snapshots.length," Snapshots.");
-                app.createChartData(snapshots);
-            }
-        };
-
-        var snapshotStore = Ext.create('Rally.data.lookback.SnapshotStore', storeConfig);
-    },
-
-    createChartData : function ( snapshots ) {
         
-        var that = this;
+        async.map( configs, wsapiQuery, function(err,results) {
+            console.log("Features:",results[0]);
+            callback(null,results[0]);
+        });
+    },
+
+    getStartAndEndDates : function( features, callback) {
+
+        var startdates = _.compact( _.pluck(features,function(r) { return r.get("PlannedStartDate");}) );
+        var enddates   = _.compact( _.pluck(features,function(r) { return r.get("PlannedEndDate");}) );
+
+        app.startdate = _.min(startdates);
+        app.enddate   = _.max(enddates);
+        app.isoStartDate  = Rally.util.DateTime.toIsoString(app.startdate, false);
+        app.isoEndDate    = Rally.util.DateTime.toIsoString(app.enddate, false);
+
+        console.log("start",app.startdate,"end",app.enddate);
+
+        console.log(_.isFinite(app.startdate),_.isFinite(app.enddate));
+        if ((app.infinity(app.startdate)) || (app.infinity(app.enddate))) {
+            callback("Could not determine start or end date from Tagged portfolio items",null);
+        } else {
+            callback(null,features);
+        }
+
+    },
+
+    infinity : function(val) { 
+        return val === Infinity || val === -Infinity
+    },
+
+    querySnapshots : function( features, callback) {
+        
+        var config = {};
+        config.fetch   = ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount',
+                            'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount',
+                            'PercentDoneByStoryCount'],
+        config.hydrate =  ['_TypeHierarchy'];
+        config.find    = {
+            'ObjectID' : { "$in": _.pluck( features, function( f ) { return f.get("ObjectID"); } ) },
+            '_ValidFrom' : { "$gte" : app.isoStartDate }
+        };
+
+        async.map([config],snapshotQuery,function(error,results) {
+            callback(null,results[0]);
+        });
+    },
+
+    lumenize : function ( snapshots , callback) {
+        
         var lumenize = window.parent.Rally.data.lookback.Lumenize;
         var snapShotData = _.map(snapshots,function(d){return d.data;});
-        var extent = app.getReleaseExtent(app.releases);
-
-        var snaps = _.sortBy(snapShotData,"_UnformattedID");
-        // can be used to 'knockout' holidays
         var holidays = [
             //{year: 2014, month: 1, day: 1}  // Made up holiday to test knockout
         ];
@@ -286,95 +204,63 @@ Ext.define('CustomApp', {
             summaryMetricsConfig: [],
             deriveFieldsAfterSummary: myCalc.getDerivedFieldsAfterSummary(),
             granularity: lumenize.Time.DAY,
-            tz: 'America/Chicago',
+            tz: 'America/New_York',
             holidays: holidays,
             workDays: 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday'
         };
-        // release start and end dates
-        var startOnISOString = new lumenize.Time(extent.start).getISOStringInTZ(config.tz);
-        var upToDateISOString = new lumenize.Time(extent.end).getISOStringInTZ(config.tz);
+        // chart start and end dates
+        var startOnISOString = new lumenize.Time(app.startdate).getISOStringInTZ(config.tz);
+        var upToDateISOString = new lumenize.Time(app.enddate).getISOStringInTZ(config.tz);
         // create the calculator and add snapshots to it.
         calculator = new lumenize.TimeSeriesCalculator(config);
         calculator.addSnapshots(snapShotData, startOnISOString, upToDateISOString);
-        
+
         // create a high charts series config object, used to get the hc series data
         var hcConfig = [{ name : "label" }];
         _.each( app.series, function(s) {
             if ( app.getSetting(s.name)===true) {
                 hcConfig.push({
-                   name : s.description, type : s.display
+                    name : s.description, type : s.display
                 });
             }
         });
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
-        this.showChart( trimHighChartsConfig(hc) );
+        console.log("hc",hc);
+        callback(null, trimHighChartsConfig(hc));
     },
 
-    createPlotLines : function(seriesData) {
+    showChart : function(series, callback) {
 
-        // filter the iterations
-        var start = new Date( Date.parse(seriesData[0]));
-        var end   = new Date( Date.parse(seriesData[seriesData.length-1]));
-        var releaseI = _.filter(this.iterations,function(i) { return i.get("EndDate") >= start && i.get("EndDate") <= end;});
-        releaseI = _.uniq(releaseI,function(i) { return i.get("Name");});
-        var itPlotLines = _.map(releaseI, function(i){
-            var d = new Date(Date.parse(i.raw.EndDate)).toISOString().split("T")[0];
-            return {
-                label : i.get("Name"),
-                dashStyle : "Dot",
-                color: 'grey',
-                width: 1,
-                value: _.indexOf(seriesData,d)
-            }; 
-        });
-        // create release plot lines        
-        var rePlotLines = _.map(this.selectedReleases, function(i){
-            var d = new Date(Date.parse(i.raw.ReleaseDate)).toISOString().split("T")[0];
-            return {
-                label : i.get("Name"),
-                // dashStyle : "Dot",
-                color: 'grey',
-                width: 1,
-                value: _.indexOf(seriesData,d)
-            }; 
-        });
-        return itPlotLines.concat(rePlotLines);
-
-    },
-
-    showChart : function(series) {
-
-        console.log("series",series);
-        var that = this;
-        var chart = this.down("#chart1");
-        myMask.hide();
+        var chart = app.down("#chart1");
         if (chart !== null)
             chart.removeAll();
             
-        // create plotlines
-        var plotlines = this.createPlotLines(series[0].data);
-        
         // set the tick interval
         var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
 
-        // series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
+        var colors = createColorsArray(series);
 
         var extChart = Ext.create('Rally.ui.chart.Chart', {
             columnWidth : 1,
             itemId : "chart1",
+            listeners : {
+                afterrender : function() {
+                    console.log("rendered");
+                    callback(null,null);
+                }
+            },
             chartData: {
                 categories : series[0].data,
                 series : series.slice(1, series.length)
             },
 
-//            chartColors: ['Gray', 'Orange', 'LightGray', 'LightGray', 'LightGray', 'Blue','Green'],
-            chartColors : createColorsArray(series),
+            chartColors: colors,
 
             chartConfig : {
                 chart: {
                 },
                 title: {
-                text: 'PSI Feature Burnup ('+ app.configReleases  +')',
+                text: app.title,
                 x: -20 //center
                 },
                 plotOptions: {
@@ -385,7 +271,7 @@ Ext.define('CustomApp', {
                     }
                 },
                 xAxis: {
-                    plotLines : plotlines,
+                    // plotLines : plotlines,
                     //tickInterval : 7,
                     tickInterval : tickInterval,
                     type: 'datetime',
@@ -397,7 +283,8 @@ Ext.define('CustomApp', {
                 },
                 yAxis: {
                     title: {
-                        text: that.pointsUnitType() ? 'Points':'Count'
+                        // text: app.unittype
+                        text : "Points\\Count"
                     },
                     plotLines: [{
                         value: 0,
@@ -410,18 +297,13 @@ Ext.define('CustomApp', {
                 legend: { align: 'center', verticalAlign: 'bottom' }
             }
         });
-        this.add(extChart);
-        chart = this.down("#chart1");
+        app.add(extChart);
+        chart = app.down("#chart1");
         var p = Ext.get(chart.id);
         elems = p.query("div.x-mask");
         _.each(elems, function(e) { e.remove(); });
         var elems = p.query("div.x-mask-msg");
         _.each(elems, function(e) { e.remove(); });
-
-    },
-
-    pointsUnitType : function() {
-        return app.configPointsOrCount === "Points";
 
     }
 
