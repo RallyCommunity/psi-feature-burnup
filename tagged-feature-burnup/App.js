@@ -8,7 +8,7 @@ Ext.define('CustomApp', {
 	launch: function() {
 
 		var workspace = (this.getContext().getWorkspace());
-console.log ('foo');
+
 		Rally.data.ModelFactory.getModel({
 		    type: 'Workspace',
 		    success: function(model) {
@@ -47,6 +47,9 @@ console.log ('foo');
 			app.lumenize,
 			app.showChart
 		], function(err,results){
+			if (err !== null) {
+				app.add({html:err});
+			}	
 			console.log("done!");
 			app.mask.hide();
 		});
@@ -150,8 +153,17 @@ console.log ('foo');
 
 		console.log("start",app.startdate,"end",app.enddate);
 
-		callback(null,features);
+		console.log(_.isFinite(app.startdate),_.isFinite(app.enddate));
+		if ((app.infinity(app.startdate)) || (app.infinity(app.enddate))) {
+			callback("Could not determine start or end date from Tagged portfolio items",null);
+		} else {
+			callback(null,features);
+		}
 
+	},
+
+	infinity : function(val) { 
+		return val === Infinity || val === -Infinity
 	},
 
 	querySnapshots : function( features, callback) {
