@@ -10,15 +10,15 @@ Ext.define('CustomApp', {
 		var workspace = (this.getContext().getWorkspace());
 
 		Rally.data.ModelFactory.getModel({
-		    type: 'Workspace',
-		    success: function(model) {
-		        model.load(workspace.ObjectID, {
-			    fetch: true,
-				    callback: function(result, operation) {
-				        if(operation.wasSuccessful()) {
-				            console.log("workspace result",result);
-				        }
-				    }
+			type: 'Workspace',
+			success: function(model) {
+				model.load(workspace.ObjectID, {
+				fetch: true,
+					callback: function(result, operation) {
+						if(operation.wasSuccessful()) {
+							console.log("workspace result",result);
+						}
+					}
 				});
 			}
 		});
@@ -104,8 +104,8 @@ Ext.define('CustomApp', {
 
 		var configs = [];
 		configs.push({ model : "PreliminaryEstimate", 
-                        fetch : ['Name','ObjectID','Value'],
-                        filters : []
+						fetch : ['Name','ObjectID','Value'],
+						filters : []
 		});
 
 		async.map( configs, wsapiQuery, function(err,results) {
@@ -131,8 +131,8 @@ Ext.define('CustomApp', {
 		});
 
 		configs.push({ model : "PortfolioItem/"+app.itemtype,
-                        fetch : ['Name', 'ObjectID', 'PlannedStartDate','PlannedEndDate' ],
-                        filters:[filter]
+						fetch : ['Name', 'ObjectID', 'PlannedStartDate','PlannedEndDate' ],
+						filters:[filter]
 		});
 		
 		async.map( configs, wsapiQuery, function(err,results) {
@@ -170,8 +170,8 @@ Ext.define('CustomApp', {
 		
 		var config = {};
 		config.fetch   = ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount',
-                            'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount',
-                            'PercentDoneByStoryCount'],
+							'LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount',
+							'PercentDoneByStoryCount'],
 		config.hydrate =  ['_TypeHierarchy'];
 		config.find    = {
 			'ObjectID' : { "$in": _.pluck( features, function( f ) { return f.get("ObjectID"); } ) },
@@ -238,7 +238,7 @@ Ext.define('CustomApp', {
 		// set the tick interval
 		var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
 
-        var colors = createColorsArray(series);
+		var colors = createColorsArray(series);
 
 		var extChart = Ext.create('Rally.ui.chart.Chart', {
 			columnWidth : 1,
