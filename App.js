@@ -14,7 +14,7 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
 
-            releases                : "2014 Q3",
+            releases                : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
