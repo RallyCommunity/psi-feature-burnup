@@ -14,7 +14,7 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
 
-            releases                : "",
+            releases                : "2014 Q4",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -342,10 +342,39 @@ Ext.define('CustomApp', {
 
     },
 
+    addHistoricalTrend : function(series) {
+
+        var acceptedSeries = _.find(series,function(s) { return s.name === "Accepted Points"});
+        console.log("acceptedSeries",acceptedSeries)
+        if (!_.isNull(acceptedSeries)) {
+            var forecast = Ext.create("ForecastLine",{series : acceptedSeries.data,type:'linear'});
+            var ldi = _.indexOf(acceptedSeries.data,null);
+            var historyTrend = forecast.getProjectionLineAtIndices([Math.round(ldi/2)]);
+            return {
+                data : historyTrend[0],
+                dashStyle : 'shortdot',
+                name : 'History Trend',
+                visible : false
+            }
+            // console.log("forecast",forecast);
+            // console.log("ldi",ldi);
+            // console.log("history trend",forecast.getProjectionLineAtIndices([Math.round(ldi/2)]));
+        } else {
+            return null;
+        }
+
+    },
+
     showChart : function(series) {
 
-        console.log("series",series);
         var that = this;
+
+        var historicalTrend = that.addHistoricalTrend(series);
+
+        series.push(historicalTrend);
+
+        console.log("series",series);
+        
         var chart = this.down("#chart1");
         myMask.hide();
         if (chart !== null)
@@ -357,8 +386,6 @@ Ext.define('CustomApp', {
         // set the tick interval
         var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
 
-        // series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
-
         var extChart = Ext.create('Rally.ui.chart.Chart', {
             columnWidth : 1,
             itemId : "chart1",
@@ -367,7 +394,6 @@ Ext.define('CustomApp', {
                 series : series.slice(1, series.length)
             },
 
-//            chartColors: ['Gray', 'Orange', 'LightGray', 'LightGray', 'LightGray', 'Blue','Green'],
             chartColors : createColorsArray(series),
 
             chartConfig : {
@@ -397,7 +423,8 @@ Ext.define('CustomApp', {
                 },
                 yAxis: {
                     title: {
-                        text: that.pointsUnitType() ? 'Points':'Count'
+                        // text: that.pointsUnitType() ? 'Points':'Count'
+                        text : 'Points/Count'
                     },
                     plotLines: [{
                         value: 0,

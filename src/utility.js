@@ -81,7 +81,12 @@ function createColorsArray( series ) {
             var as = _.find( app.series, function(a) {
                 return a.description === s.name;
             });
-            colors.push(as.color);
+            if (!_.isUndefined(as)) {
+                colors.push(as.color);    
+            } else {
+                colors.push("LightGray");
+            }
+            
         }
     });
 
