@@ -25,7 +25,7 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
 
-            releases                : "",
+            releases                : "2014 Q4",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -353,10 +353,39 @@ Ext.define('CustomApp', {
 
     },
 
+    addHistoricalTrend : function(series) {
+
+        var acceptedSeries = _.find(series,function(s) { return s.name === "Accepted Points"});
+        console.log("acceptedSeries",acceptedSeries)
+        if (!_.isNull(acceptedSeries)) {
+            var forecast = Ext.create("ForecastLine",{series : acceptedSeries.data,type:'linear'});
+            var ldi = _.indexOf(acceptedSeries.data,null);
+            var historyTrend = forecast.getProjectionLineAtIndices([Math.round(ldi/2)]);
+            return {
+                data : historyTrend[0],
+                dashStyle : 'shortdot',
+                name : 'History Trend',
+                visible : false
+            }
+            // console.log("forecast",forecast);
+            // console.log("ldi",ldi);
+            // console.log("history trend",forecast.getProjectionLineAtIndices([Math.round(ldi/2)]));
+        } else {
+            return null;
+        }
+
+    },
+
     showChart : function(series) {
 
-        console.log("series",series);
         var that = this;
+
+        var historicalTrend = that.addHistoricalTrend(series);
+
+        series.push(historicalTrend);
+
+        console.log("series",series);
+        
         var chart = this.down("#chart1");
         myMask.hide();
         if (chart !== null)
@@ -368,8 +397,6 @@ Ext.define('CustomApp', {
         // set the tick interval
         var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
 
-        // series[1].data = _.map(series[1].data, function(d) { return _.isNull(d) ? 0 : d; });
-
         var extChart = Ext.create('Rally.ui.chart.Chart', {
             columnWidth : 1,
             itemId : "chart1",
@@ -378,7 +405,6 @@ Ext.define('CustomApp', {
                 series : series.slice(1, series.length)
             },
 
-//            chartColors: ['Gray', 'Orange', 'LightGray', 'LightGray', 'LightGray', 'Blue','Green'],
             chartColors : createColorsArray(series),
 
             chartConfig : {
@@ -408,7 +434,8 @@ Ext.define('CustomApp', {
                 },
                 yAxis: {
                     title: {
-                        text: that.pointsUnitType() ? 'Points':'Count'
+                        // text: that.pointsUnitType() ? 'Points':'Count'
+                        text : 'Points/Count'
                     },
                     plotLines: [{
                         value: 0,
@@ -707,7 +734,12 @@ function createColorsArray( series ) {
             var as = _.find( app.series, function(a) {
                 return a.description === s.name;
             });
-            colors.push(as.color);
+            if (!_.isUndefined(as)) {
+                colors.push(as.color);    
+            } else {
+                colors.push("LightGray");
+            }
+            
         }
     });
 
@@ -777,20 +809,20 @@ Ext.define("ForecastLine", function() {
         },
 
         createRegressionSeries : function(series) {
-            console.log("series",series);
+            // console.log("series",series);
             var rseries = _.map(series,function(point,index){
                 return [index,point];
             });
             var r = regression(self.type,rseries);
             var fpi = _.indexOf(series,null);
             var lpi = fpi - 1;
-            console.log("fpi",fpi);
+            // console.log("fpi",fpi);
             var p =  _.map(r.points,function(point,index) {
                 return index < fpi-1 ? null : r.points[index][1];
             });
             p = _.map(p,function(value){ return !_.isNaN(value) ? value : null;});
             var offset = !_.isNull(series[lpi]) && !_.isNull(p[lpi]) ? (series[lpi] - p[lpi]) : 0;
-            console.log(series[lpi],p[lpi],offset);
+            // console.log(series[lpi],p[lpi],offset);
             var proj = _.map(p,function(point,x) {
                 return !_.isNull(point) && x >= lpi ? (point+offset) : point;
             });         
