@@ -62,7 +62,25 @@ Ext.define("MyBurnCalculator", function() {
             ];
         },
 
-        calcProjectionPoint : function(seriesName,row, index, summaryMetrics, seriesData) {
+        getMidPointIndex : function(dateSeries) {
+
+            var today = new Date();
+
+            var tdi = _.findIndex(dateSeries,function(d) {
+                return ( today.setHours(0,0,0,0) === new Date(Date.parse(d)).setHours(0,0,0,0))
+            });
+
+            console.log("tdi",tdi);
+
+            return tdi !== -1 ? Math.round(tdi/2) : -1;
+
+        },
+
+        calcProjectionPoint : function(seriesName,row, index, summaryMetrics, seriesData, projectFrom) {
+
+            if (index===0) {
+                console.log("projectFrom", projectFrom);
+            }
 
             var that = this;
 
@@ -70,6 +88,7 @@ Ext.define("MyBurnCalculator", function() {
             // we also optionally filter out values.
             if (index === 0) {
                 datesData = _.pluck(seriesData,"label");
+                var mid = self.getMidPointIndex(datesData);
                 var today = new Date();
                 var li = datesData.length-1;
 
@@ -78,9 +97,14 @@ Ext.define("MyBurnCalculator", function() {
                 // filter to just values before today
                 that.data[seriesName] = _.filter(
                     that.data[seriesName], function(d,i) {
-                        return new Date(Date.parse(datesData[i])) < today;
+                        if (!_.isUndefined(projectFrom) && projectFrom==="mid") {
+                            return (i < mid);
+                        } else {
+                            return new Date(Date.parse(datesData[i])) < today;
+                        }
                     }
                 );
+                console.log(seriesName,that.data[seriesName]);
                 // if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // optionally remove zero values
                 var dx = that.data[seriesName].length;
@@ -120,8 +144,9 @@ Ext.define("MyBurnCalculator", function() {
                 return {
                     as : m.description,
                     projectOn : m.projectOn,
+                    projectFrom : m.projectFrom,
                     f : function(row,index,summaryMetrics,seriesData) {
-                        var p = self.calcProjectionPoint(this.projectOn,row,index,summaryMetrics,seriesData);
+                        var p = self.calcProjectionPoint(this.projectOn,row,index,summaryMetrics,seriesData,this.projectFrom);
                         return p;
                     }
                 };

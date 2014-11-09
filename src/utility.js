@@ -68,7 +68,8 @@ function createSeriesArray() {
         { name : "AcceptedPointsProjection", description : "Accepted Projection", projectOn : "Accepted Points",        color : "LightGray" },
         { name : "AcceptedCountProjection",  description : "Accepted Count Projection", projectOn : "Accepted Count",   color : "LightGray" },
         { name : "FeatureCount",             description : "Feature Count",          field : "ObjectID",                display : "column", f : "count", color : "Blue" },
-        { name : "FeatureCountCompleted",    description : "Completed Feature Count",field : "Completed",               display : "column", f : "sum", color : "Green" }
+        { name : "FeatureCountCompleted",    description : "Completed Feature Count",field : "Completed",               display : "column", f : "sum", color : "Green" },
+        { name : "HistoricalProjection",     description : "Historical Trend Projection",projectOn : "Accepted Points", color : "LightGray", hidden : true, projectFrom : "mid" }
     ];
 }
 
@@ -109,6 +110,7 @@ function trimHighChartsConfig(hc) {
         }
         // for projection null values before today.
         if (series.name.indexOf("Projection")!==-1) {
+            console.log("projection series",series);
             _.each( series.data, function( point , x ){
                 if ( Date.parse(hc[0].data[x]) < today ) {
                     series.data[x] = null;

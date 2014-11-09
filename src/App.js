@@ -14,7 +14,7 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
 
-            releases                : "",
+            releases                : "2014 Q4",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -26,7 +26,8 @@ Ext.define('CustomApp', {
             AcceptedPointsProjection: true,
             AcceptedCountProjection : false,
             FeatureCount            : false,
-            FeatureCountCompleted   : false
+            FeatureCountCompleted   : false,
+            HistoricalProjection    : true
 
         }
 
@@ -356,9 +357,6 @@ Ext.define('CustomApp', {
                 name : 'History Trend',
                 visible : false
             }
-            // console.log("forecast",forecast);
-            // console.log("ldi",ldi);
-            // console.log("history trend",forecast.getProjectionLineAtIndices([Math.round(ldi/2)]));
         } else {
             return null;
         }
@@ -369,9 +367,8 @@ Ext.define('CustomApp', {
 
         var that = this;
 
-        var historicalTrend = that.addHistoricalTrend(series);
-
-        series.push(historicalTrend);
+        // var historicalTrend = that.addHistoricalTrend(series);
+        // series.push(historicalTrend);
 
         console.log("series",series);
         
