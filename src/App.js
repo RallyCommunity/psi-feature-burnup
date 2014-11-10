@@ -13,8 +13,7 @@ Ext.define('CustomApp', {
     config: {
 
         defaultSettings : {
-
-            releases                : "2014 Q4",
+            releases                : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -28,7 +27,6 @@ Ext.define('CustomApp', {
             FeatureCount            : false,
             FeatureCountCompleted   : false,
             HistoricalProjection    : true
-
         }
 
     },
@@ -56,6 +54,12 @@ Ext.define('CustomApp', {
     },
 
     launch: function() {
+
+        // var arr1 =  [73, 92, 123, 140, 169, 169, 169, 178, 233, 262, 297, 319, 319, 319, 343, 392, 398, 424, 474, 474, 474, 474];
+        // var arr2 =  [73, 92, 123, 140, 169, 169, 169, 178, 233, 262, 297] ;
+        // var y1 = linearProject(arr1,92);
+        // var y2 = linearProject(arr2,92);
+        // console.log("y1",y1,"y2",y2);
 
         app = this;
         app.series = createSeriesArray();
@@ -343,34 +347,13 @@ Ext.define('CustomApp', {
 
     },
 
-    addHistoricalTrend : function(series) {
-
-        var acceptedSeries = _.find(series,function(s) { return s.name === "Accepted Points"});
-        console.log("acceptedSeries",acceptedSeries)
-        if (!_.isNull(acceptedSeries)) {
-            var forecast = Ext.create("ForecastLine",{series : acceptedSeries.data,type:'linear'});
-            var ldi = _.indexOf(acceptedSeries.data,null);
-            var historyTrend = forecast.getProjectionLineAtIndices([Math.round(ldi/2)]);
-            return {
-                data : historyTrend[0],
-                dashStyle : 'shortdot',
-                name : 'History Trend',
-                visible : false
-            }
-        } else {
-            return null;
-        }
-
-    },
-
     showChart : function(series) {
 
         var that = this;
 
-        // var historicalTrend = that.addHistoricalTrend(series);
-        // series.push(historicalTrend);
-
-        console.log("series",series);
+        // console.log("series",series);
+        console.log("Last Accepted Projection  ",_.last(series[5].data));
+        console.log("Last Historical Projection",_.last(series[6].data));
         
         var chart = this.down("#chart1");
         myMask.hide();

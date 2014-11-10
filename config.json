@@ -8,8 +8,6 @@
       "src/calculator.js",
       "src/line-fitter.js",
       "src/utility.js",
-      "src/forecasting.js",
-      "lib/regression.min.js",
       "https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js",
       "https://cdnjs.cloudflare.com/ajax/libs/async/1.22/async.min.js"
    ],

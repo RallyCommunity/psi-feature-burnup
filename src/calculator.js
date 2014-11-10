@@ -70,17 +70,11 @@ Ext.define("MyBurnCalculator", function() {
                 return ( today.setHours(0,0,0,0) === new Date(Date.parse(d)).setHours(0,0,0,0))
             });
 
-            console.log("tdi",tdi);
-
             return tdi !== -1 ? Math.round(tdi/2) : -1;
 
         },
 
-        calcProjectionPoint : function(seriesName,row, index, summaryMetrics, seriesData, projectFrom) {
-
-            if (index===0) {
-                console.log("projectFrom", projectFrom);
-            }
+        calcProjectionPoint : function(seriesName,projectOn,row, index, summaryMetrics, seriesData, projectFrom) {
 
             var that = this;
 
@@ -92,7 +86,8 @@ Ext.define("MyBurnCalculator", function() {
                 var today = new Date();
                 var li = datesData.length-1;
 
-                that.data[seriesName] = _.pluck(seriesData,seriesName);
+                // that.data[seriesName] = _.pluck(seriesData,seriesName);
+                that.data[seriesName] = _.pluck(seriesData,projectOn);
                 // if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // filter to just values before today
                 that.data[seriesName] = _.filter(
@@ -104,7 +99,6 @@ Ext.define("MyBurnCalculator", function() {
                         }
                     }
                 );
-                console.log(seriesName,that.data[seriesName]);
                 // if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // optionally remove zero values
                 var dx = that.data[seriesName].length;
@@ -145,8 +139,9 @@ Ext.define("MyBurnCalculator", function() {
                     as : m.description,
                     projectOn : m.projectOn,
                     projectFrom : m.projectFrom,
+                    name : m.name,
                     f : function(row,index,summaryMetrics,seriesData) {
-                        var p = self.calcProjectionPoint(this.projectOn,row,index,summaryMetrics,seriesData,this.projectFrom);
+                        var p = self.calcProjectionPoint(this.name,this.projectOn,row,index,summaryMetrics,seriesData,this.projectFrom);
                         return p;
                     }
                 };
