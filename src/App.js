@@ -13,7 +13,7 @@ Ext.define('CustomApp', {
     config: {
 
         defaultSettings : {
-            releases                : "",
+            releases                : "PSI 6",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -204,11 +204,22 @@ Ext.define('CustomApp', {
         myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
         var filter = null;
 
-        _.each( app.releases , function( release, i ) {
+        var releaseNames = _.uniq(_.map(app.releases,function(r){ return r.get("Name");}));
+        console.log("releaseNames",releaseNames);
+
+        // _.each( app.releases , function( release, i ) {
+        //     var f = Ext.create('Rally.data.QueryFilter', {
+        //         property: 'Release',
+        //         operator: '=',
+        //         value: release.get("_ref")
+        //     });
+        //     filter = i === 0 ? f : filter.or(f);
+        // });
+        _.each( releaseNames , function( release, i ) {
             var f = Ext.create('Rally.data.QueryFilter', {
-                property: 'Release',
+                property: 'Release.Name',
                 operator: '=',
-                value: release.get("_ref")
+                value: release
             });
             filter = i === 0 ? f : filter.or(f);
         });
