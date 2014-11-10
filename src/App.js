@@ -13,7 +13,7 @@ Ext.define('CustomApp', {
     config: {
 
         defaultSettings : {
-            releases                : "PSI 6",
+            releases                : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
