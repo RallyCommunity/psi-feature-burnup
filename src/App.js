@@ -26,7 +26,8 @@ Ext.define('CustomApp', {
             AcceptedCountProjection : false,
             FeatureCount            : false,
             FeatureCountCompleted   : false,
-            HistoricalProjection    : true
+            HistoricalProjection    : false,
+            RefinedEstimate : false
         }
 
     },
@@ -261,7 +262,7 @@ Ext.define('CustomApp', {
             autoLoad : true,
             pageSize:1000,
             limit: 'Infinity',
-            fetch: ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount','PercentDoneByStoryCount'],
+            fetch: ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount','PercentDoneByStoryCount','RefinedEstimate'],
             hydrate: ['_TypeHierarchy']
         };
 
@@ -363,8 +364,8 @@ Ext.define('CustomApp', {
         var that = this;
 
         // console.log("series",series);
-        console.log("Last Accepted Projection  ",_.last(series[5].data));
-        console.log("Last Historical Projection",_.last(series[6].data));
+        // console.log("Last Accepted Projection  ",_.last(series[5].data));
+        // console.log("Last Historical Projection",_.last(series[6].data));
         
         var chart = this.down("#chart1");
         myMask.hide();
