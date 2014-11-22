@@ -14,6 +14,7 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
             releases                : "",
+            epicIds                 : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -45,6 +46,12 @@ Ext.define('CustomApp', {
                 label : "Release names to be included (comma seperated)"
             },
             {
+                name: 'epicIds',
+                xtype: 'rallytextfield',
+                label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
+            },
+
+            {
                 name: 'ignoreZeroValues',
                 xtype: 'rallycheckboxfield',
                 label: 'For projection ignore zero values'
@@ -56,17 +63,11 @@ Ext.define('CustomApp', {
 
     launch: function() {
 
-        // var arr1 =  [73, 92, 123, 140, 169, 169, 169, 178, 233, 262, 297, 319, 319, 319, 343, 392, 398, 424, 474, 474, 474, 474];
-        // var arr2 =  [73, 92, 123, 140, 169, 169, 169, 178, 233, 262, 297] ;
-        // var y1 = linearProject(arr1,92);
-        // var y2 = linearProject(arr2,92);
-        // console.log("y1",y1,"y2",y2);
-
         app = this;
         app.series = createSeriesArray();
         app.configReleases = app.getSetting("releases");
-        app.configPointsOrCount = app.getSetting("pointsOrCount");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
+        app.epicIds = app.getSetting("epicIds");
 
         if (app.configReleases==="") {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
@@ -122,7 +123,11 @@ Ext.define('CustomApp', {
             async.map( configs, app.wsapiQuery, function(err,results) {
 
                 app.iterations = results[0];
-                app.queryFeatures();
+
+                if (app.epicIds.split(",")[0] !=="")
+                    app.queryEpicFeatures();
+                else
+                    app.queryFeatures();
 
             });
         });
@@ -200,6 +205,49 @@ Ext.define('CustomApp', {
 
     },
 
+    queryEpicFeatures : function() {
+
+        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+
+        var filter = null;
+        var epicIds = app.epicIds.split(",");
+
+        if (epicIds.length === 0) {
+            app.add({html:"No epic id's specified"+app.configReleases});
+            return;
+        }
+
+        _.each(epicIds, function( epicId, i) {
+            var f = Ext.create('Rally.data.QueryFilter', {
+                property: 'Parent.FormattedID',
+                operator: '=',
+                value: epicId
+            });
+            filter = i === 0 ? f : filter.or(f);
+        });
+
+        return Ext.create('Rally.data.WsapiDataStore', {
+            autoLoad: true,
+            model : app.featureType,
+            limit : 'Infinity',
+            fetch: ['ObjectID','FormattedID' ],
+            filters: [filter],
+            listeners: {
+                load: function(store, features) {
+                    console.log("Loaded:"+features.length," Features.");
+                    app.features = features;
+                    if (app.features.length === 0) {
+                        app.add({html:"No features for parent PortfolioItem :"+app.epicIds});
+                        return;
+                    } else {
+                    app.queryFeatureSnapshots();
+                    }
+                }
+            }
+        });        
+
+    },
+
     queryFeatures : function() {
 
         myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
@@ -208,14 +256,6 @@ Ext.define('CustomApp', {
         var releaseNames = _.uniq(_.map(app.releases,function(r){ return r.get("Name");}));
         console.log("releaseNames",releaseNames);
 
-        // _.each( app.releases , function( release, i ) {
-        //     var f = Ext.create('Rally.data.QueryFilter', {
-        //         property: 'Release',
-        //         operator: '=',
-        //         value: release.get("_ref")
-        //     });
-        //     filter = i === 0 ? f : filter.or(f);
-        // });
         _.each( releaseNames , function( release, i ) {
             var f = Ext.create('Rally.data.QueryFilter', {
                 property: 'Release.Name',
@@ -250,8 +290,9 @@ Ext.define('CustomApp', {
     queryFeatureSnapshots : function () {
 
         var ids = _.pluck(app.features, function(feature) { return feature.get("ObjectID");} );
+        // var pes = _.pluck(app.features, function(feature) { return feature.get("PreliminaryEstimate");} );
         var extent = app.getReleaseExtent(app.releases);
-        console.log("ids",ids);
+        // console.log("ids",ids,pes);
 
         var storeConfig = {
             find : {
@@ -415,7 +456,6 @@ Ext.define('CustomApp', {
                 },
                 yAxis: {
                     title: {
-                        // text: that.pointsUnitType() ? 'Points':'Count'
                         text : 'Points/Count'
                     },
                     plotLines: [{
@@ -436,11 +476,6 @@ Ext.define('CustomApp', {
         _.each(elems, function(e) { e.remove(); });
         var elems = p.query("div.x-mask-msg");
         _.each(elems, function(e) { e.remove(); });
-
-    },
-
-    pointsUnitType : function() {
-        return app.configPointsOrCount === "Points";
 
     }
 
