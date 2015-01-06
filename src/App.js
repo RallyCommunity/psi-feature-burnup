@@ -58,6 +58,11 @@ Ext.define('CustomApp', {
             }
         ];
 
+        _.each(values,function(value){
+            value.labelWidth = 250;
+            value.labelAlign = 'left'
+        });
+
         return values.concat(checkValues);
     },
 
