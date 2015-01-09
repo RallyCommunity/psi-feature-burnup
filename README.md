@@ -22,12 +22,12 @@ Completed Feature Count | The count of completed features. A feature is consider
 
 There is a tag version of this chart in the Tagged-feature-burnup directory.
 
-![psi-feature-burnup](https://raw.githubusercontent.com/wrackzone/psi-feature-burnup/master/psi-feature-burnup-screenshot.png)
+![psi-feature-burnup](https://raw.githubusercontent.com/wrackzone/psi-feature-burnup/master/docs/psi-feature-burnup-screenshot.png)
 
 
-![psi-feature-burnup](https://raw.githubusercontent.com/wrackzone/psi-feature-burnup/master/screenshot2.png)
+![psi-feature-burnup](https://raw.githubusercontent.com/wrackzone/psi-feature-burnup/master/docs/screenshot2.png)
 
-![psi-feature-burnup](https://raw.githubusercontent.com/wrackzone/psi-feature-burnup/master/screenshot3.png)
+![psi-feature-burnup](https://raw.githubusercontent.com/wrackzone/psi-feature-burnup/master/docs/screenshot3.png)
 
 ## License
 
