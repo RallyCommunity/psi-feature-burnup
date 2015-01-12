@@ -14,7 +14,8 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
             releases                : "",
-            epicIds                 : "",
+            parentQuery             : "",
+            parentIds                 : "SI6,SI4,SI3,SI7,SI5",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -46,7 +47,13 @@ Ext.define('CustomApp', {
                 label : "Release names to be included (comma seperated)"
             },
             {
-                name: 'epicIds',
+                name: 'parentQuery',
+                xtype: 'rallytextfield',
+                label : "Query for feature parent Portfolio items (will override release selection)"
+            },
+
+            {
+                name: 'parentIds',
                 xtype: 'rallytextfield',
                 label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
             },
@@ -72,9 +79,10 @@ Ext.define('CustomApp', {
         app.series = createSeriesArray();
         app.configReleases = app.getSetting("releases");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
-        app.epicIds = app.getSetting("epicIds");
+        app.parentIds = app.getSetting("parentIds");
+        app.parentQuery = app.getSetting("parentQuery");
 
-        if (app.configReleases==="") {
+        if ((app.configReleases==="") && (app.parentIds==="")) {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
             return;
         }
@@ -88,6 +96,8 @@ Ext.define('CustomApp', {
         // release selected page will over-ride app config
         app.configReleases = tbName !== "" ? tbName : app.configReleases;
 
+        var releaseFilter = app.createReleaseFilter(app.configReleases);
+
         var configs = [];
         
         // query for estimate values, releases and iterations.
@@ -97,7 +107,7 @@ Ext.define('CustomApp', {
         });
         configs.push({ model : "Release",             
                        fetch : ['Name', 'ObjectID', 'Project', 'ReleaseStartDate', 'ReleaseDate' ], 
-                       filters: [app.createReleaseFilter(app.configReleases)]
+                       filters: (releaseFilter!==null? [releaseFilter] : [])
         });
         configs.push({ model : "TypeDefinition",
                        fetch : true,
@@ -111,30 +121,44 @@ Ext.define('CustomApp', {
             app.releases    = results[1];
             app.featureType = results[2][0].get("TypePath");
 
-            if (app.releases.length===0) {
-                app.add({html:"No Releases found with this name: "+app.configReleases});
-                return;
-            }
+            // choose which strategy to use to filter features.
 
-            configs = [
-                {
-                    model  : "Iteration",
-                    fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
-                    filters: app.createIterationFilter(app.releases)
+            if (app.parentIds.split(",")[0] !=="") {
+                myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+                // app.queryEpicFeatures();
+                var strategy = Ext.create("FeaturesForParentStrategy", {
+                    portfolioIds : app.parentIds,
+                    featureType : app.featureType,
+                    context : app.getContext()
+                });
+                strategy.readFeatures( function(features,extent,iterations) {
+                    console.log("Read features",features.length,extent,iterations.length);
+                    app.features = features;
+                    app.iterations = iterations;
+                    app.extent = extent;
+                    app.queryFeatureSnapshots();
+                });
+            } else {
+                app.extent = app.getReleaseExtent(app.releases);
+                if (app.releases.length===0) {
+                    app.add({html:"No Releases found with this name: "+app.configReleases});
+                    return;
                 }
-            ];
 
-            // get the iterations
-            async.map( configs, app.wsapiQuery, function(err,results) {
+                configs = [
+                    {
+                        model  : "Iteration",
+                        fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
+                        filters: app.createIterationFilter(app.releases)
+                    }
+                ];
 
-                app.iterations = results[0];
-
-                if (app.epicIds.split(",")[0] !=="")
-                    app.queryEpicFeatures();
-                else
+                // get the iterations
+                async.map( configs, app.wsapiQuery, function(err,results) {
+                    app.iterations = results[0];
                     app.queryFeatures();
-
-            });
+                });
+            }
         });
     },
 
@@ -159,7 +183,7 @@ Ext.define('CustomApp', {
             }
         });
 
-        console.log("Release Filter:",filter.toString());
+        console.log("Release Filter:",(filter!==null?filter.toString():"not set"));
         return filter;
 
     },
@@ -215,7 +239,7 @@ Ext.define('CustomApp', {
         myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
 
         var filter = null;
-        var epicIds = app.epicIds.split(",");
+        var parentIds = app.parentIds.split(",");
 
         if (epicIds.length === 0) {
             app.add({html:"No epic id's specified"+app.configReleases});
@@ -296,14 +320,14 @@ Ext.define('CustomApp', {
 
         var ids = _.pluck(app.features, function(feature) { return feature.get("ObjectID");} );
         // var pes = _.pluck(app.features, function(feature) { return feature.get("PreliminaryEstimate");} );
-        var extent = app.getReleaseExtent(app.releases);
+        // var extent = app.getReleaseExtent(app.releases);
         // console.log("ids",ids,pes);
 
         var storeConfig = {
             find : {
                 // '_TypeHierarchy' : { "$in" : ["PortfolioItem/PIFTeam"] },
                 'ObjectID' : { "$in" : ids },
-                '_ValidTo' : { "$gte" : extent.isoStart }
+                '_ValidTo' : { "$gte" : app.extent.isoStart }
             },
             autoLoad : true,
             pageSize:1000,
