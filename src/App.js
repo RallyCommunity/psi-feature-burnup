@@ -15,7 +15,7 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentQuery             : "",
-            parentIds                 : "SI6,SI4,SI3,SI7,SI5",
+            parentIds               : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -131,12 +131,17 @@ Ext.define('CustomApp', {
                     featureType : app.featureType,
                     context : app.getContext()
                 });
-                strategy.readFeatures( function(features,extent,iterations) {
-                    console.log("Read features",features.length,extent,iterations.length);
-                    app.features = features;
-                    app.iterations = iterations;
-                    app.extent = extent;
-                    app.queryFeatureSnapshots();
+                strategy.readFeatures( function(results,error) {
+                    if (error) {
+                        app.add({html:error});
+                        return;
+                    } else {
+                        console.log("Read features",results.features.length,results.extent,results.iterations.length);
+                        app.features = results.features;
+                        app.iterations = results.iterations;
+                        app.extent = results.extent;
+                        app.queryFeatureSnapshots();
+                    }
                 });
             } else {
                 app.extent = app.getReleaseExtent(app.releases);

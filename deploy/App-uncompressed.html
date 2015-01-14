@@ -26,7 +26,7 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentQuery             : "",
-            parentIds                 : "SI6,SI4,SI3,SI7,SI5",
+            parentIds               : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -142,12 +142,17 @@ Ext.define('CustomApp', {
                     featureType : app.featureType,
                     context : app.getContext()
                 });
-                strategy.readFeatures( function(features,extent,iterations) {
-                    console.log("Read features",features.length,extent,iterations.length);
-                    app.features = features;
-                    app.iterations = iterations;
-                    app.extent = extent;
-                    app.queryFeatureSnapshots();
+                strategy.readFeatures( function(results,error) {
+                    if (error) {
+                        app.add({html:error});
+                        return;
+                    } else {
+                        console.log("Read features",results.features.length,results.extent,results.iterations.length);
+                        app.features = results.features;
+                        app.iterations = results.iterations;
+                        app.extent = results.extent;
+                        app.queryFeatureSnapshots();
+                    }
                 });
             } else {
                 app.extent = app.getReleaseExtent(app.releases);
@@ -874,7 +879,14 @@ Ext.define("FeaturesForParentStrategy", function() {
         constructor:function(config) {
             self = this;
             this.initConfig(config);
+            // trim each value to remove extra spaces
+            self.portfolioIds = _.map( self.piArray(), function(s) { return s.trim(); } ).join(",");
+            console.log(self.portfolioIds);
             return this;
+        },
+
+        piArray : function() {
+            return self.portfolioIds.split(",");
         },
 
         readFeatures : function(callback) {
@@ -884,7 +896,7 @@ Ext.define("FeaturesForParentStrategy", function() {
                 model : "portfolioitem",
                 limit : 'Infinity',
                 fetch: ['ObjectID','FormattedID','PlannedStartDate','PlannedEndDate'],
-                filters: [self.createPIFilter(self.portfolioIds,"FormattedID")],
+                filters: [self.createPIFilter(self.piArray(),"FormattedID")],
                 listeners: {
                     load: function(store, parents) {
                         console.log("Loaded:"+parents.length," Parents",parents);
@@ -893,6 +905,15 @@ Ext.define("FeaturesForParentStrategy", function() {
                             return (_.indexOf( self.portfolioIds.split(","), parent.get("FormattedID")) !==-1);
                         });                       
                         console.log("Loaded:"+parents.length," Parents",parents);
+
+                        // validate that all were found
+                        var diff = _.difference( self.piArray(), _.map(parents,function(p) { 
+                            return p.get("FormattedID");
+                        }));
+                        if (diff.length>0) {
+                            callback(null,"The following items were not found:" + diff.join(","));
+                            return;
+                        }
 
                         var extent = self.getPortfolioItemExtent(parents)
 
@@ -905,7 +926,7 @@ Ext.define("FeaturesForParentStrategy", function() {
                                 var featureIds = _.map(snapshots,function(s) { return s.get("ObjectID")});
                                 self.getFeatures(featureIds,function(features) {
                                     console.log("features",_.map(features,function(f){return f.get("FormattedID");}));
-                                    callback(features, extent, iterations);
+                                    callback( { features : features, extent : extent, iterations : iterations });
                                 });
                             });
                         });
