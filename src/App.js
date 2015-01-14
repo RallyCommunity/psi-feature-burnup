@@ -15,7 +15,7 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentQuery             : "",
-            parentIds               : "",
+            parentIds               : "S3",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
