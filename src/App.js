@@ -15,6 +15,7 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentQuery             : "",
+            parentType              : null,
             parentIds               : "S3",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
@@ -49,7 +50,8 @@ Ext.define('CustomApp', {
             {
                 name: 'parentQuery',
                 xtype: 'rallytextfield',
-                label : "Query for feature parent Portfolio items (will override release selection)"
+                label : "Query for feature parent Portfolio items (will override release selection)",
+                width : 250
             },
 
             {
@@ -82,7 +84,8 @@ Ext.define('CustomApp', {
         app.parentIds = app.getSetting("parentIds");
         app.parentQuery = app.getSetting("parentQuery");
 
-        if ((app.configReleases==="") && (app.parentIds==="")) {
+        if ( (app.configReleases==="") && (app.parentIds==="") && 
+             (app.parentType===null && app.parentQuery==="") ) {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
             return;
         }
