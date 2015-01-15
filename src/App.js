@@ -4,15 +4,16 @@ Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
     componentCls: 'app',
+    // settingsScope: 'app',
 
     // switch to app configuration from ui selection
     config: {
 
         defaultSettings : {
             releases                : "",
-            parentQuery             : '(Name = "Initiative 1")',
-            parentQueryType         : "Initiative",
             parentIds               : "",
+            parentType              : "",
+            parentQuery             : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -49,16 +50,14 @@ Ext.define('CustomApp', {
                 label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
             },
             {   
-                name: 'parentQueryType',
+                name: 'parentType',
                 xtype: 'rallytextfield',
                 label : "(Optional) Type of Parent PortfolioItem to apply filter below"
             },            
             {
-                xtype:'textareafield',
-                grow: true,
                 name:'parentQuery',
-                labelAlign: 'top',
-                width: 500,
+                xtype: 'rallytextfield',
+                width: 600,
                 // margin: 10,
                 fieldLabel:'(Optional) Limit to items that currently meet this query:'
             },
@@ -84,11 +83,13 @@ Ext.define('CustomApp', {
         app.configReleases = app.getSetting("releases");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.parentIds = app.getSetting("parentIds");
+        app.parentQueryType = app.getSetting("parentType");
         app.parentQuery = app.getSetting("parentQuery");
-        app.parentQueryType = app.getSetting("parentQueryType");
+        
+        console.log(app.getSettings());
 
         if ( (app.configReleases==="") && (app.parentIds==="") && 
-             (app.parentType===null && app.parentQuery==="") ) {
+             (app.parentQueryType==="" && app.parentQuery==="") ) {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
             return;
         }

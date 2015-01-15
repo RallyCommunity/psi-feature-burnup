@@ -9,25 +9,22 @@
 
     <script type="text/javascript">
         Rally.onReady(function () {
-                var acceptedPointsData = [];
-var acceptedCountData = [];
-var myMask = null;
-var app = null;
-var showAssignedProgram = true;
+                var app = null;
 
 Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
     componentCls: 'app',
+    // settingsScope: 'app',
 
     // switch to app configuration from ui selection
     config: {
 
         defaultSettings : {
             releases                : "",
+            parentIds               : "",
+            parentType              : "",
             parentQuery             : "",
-            parentQueryType         : null,
-            parentIds               : "S3",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -56,39 +53,22 @@ Ext.define('CustomApp', {
             {
                 name: 'releases',
                 xtype: 'rallytextfield',
-                label : "Release names to be included (comma seperated)"
+                label : "(Optional) Release names to be included (comma seperated)"
             },
             {
                 name: 'parentIds',
                 xtype: 'rallytextfield',
                 label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
             },
+            {   
+                name: 'parentType',
+                xtype: 'rallytextfield',
+                label : "(Optional) Type of Parent PortfolioItem to apply filter below"
+            },            
             {
-                name: 'parentQueryType',
-                xtype:'rallycombobox',
-                displayField: 'DisplayName',
-                fieldLabel: "(Optional) Type of Parent PortfolioItem (Epics) ids to filter Features by",
-                autoExpand: true,
-                storeConfig: {
-                    model:'TypeDefinition',
-                    filters: [
-                      {property:'Restorable',value:true}
-                    ]
-                },
-                labelWidth: 250,
-                labelAlign: 'left',
-                minWidth: 500,
-                margin: 0,
-                valueField:'TypePath',
-                bubbleEvents: ['select','ready'],
-                readyEvent: 'ready'
-            },
-            {
-                xtype:'textareafield',
-                grow: true,
                 name:'parentQuery',
-                labelAlign: 'top',
-                width: 500,
+                xtype: 'rallytextfield',
+                width: 600,
                 // margin: 10,
                 fieldLabel:'(Optional) Limit to items that currently meet this query:'
             },
@@ -114,15 +94,13 @@ Ext.define('CustomApp', {
         app.configReleases = app.getSetting("releases");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.parentIds = app.getSetting("parentIds");
+        app.parentQueryType = app.getSetting("parentType");
         app.parentQuery = app.getSetting("parentQuery");
-        app.parentQueryType = app.getSetting("parentQueryType");
-
-        console.log(app.getSetting("parentQueryType"));
-        console.log("parentQueryType",app.parentQueryType);
-
+        
+        console.log(app.getSettings());
 
         if ( (app.configReleases==="") && (app.parentIds==="") && 
-             (app.parentType===null && app.parentQuery==="") ) {
+             (app.parentQueryType==="" && app.parentQuery==="") ) {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
             return;
         }
@@ -162,47 +140,69 @@ Ext.define('CustomApp', {
             app.featureType = results[2][0].get("TypePath");
 
             // choose which strategy to use to filter features.
+            if (app.parentQueryType!=="" && app.parentQuery!=="") {
 
-            if (app.parentIds.split(",")[0] !=="") {
-                myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
-                // app.queryEpicFeatures();
-                var strategy = Ext.create("FeaturesForParentStrategy", {
-                    portfolioIds : app.parentIds,
+                var strategy = Ext.create("FeaturesForPortfolioQueryStrategy", {
                     featureType : app.featureType,
+                    parentQueryType : "PortfolioItem/" + app.parentQueryType,
+                    parentQuery : app.parentQuery,
                     context : app.getContext()
                 });
-                strategy.readFeatures( function(results,error) {
-                    if (error) {
-                        app.add({html:error});
-                        return;
-                    } else {
-                        console.log("Read features",results.features.length,results.extent,results.iterations.length);
-                        app.features = results.features;
-                        app.iterations = results.iterations;
-                        app.extent = results.extent;
-                        app.queryFeatureSnapshots();
-                    }
+                strategy.readFeatures(function(results,error){
+                        if (error) {
+                            app.add({html:error});
+                            return;
+                        } else {
+                            myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+
+                            console.log("Read features",results.features.length,results.extent,results.iterations.length);
+                            app.features = results.features;
+                            app.iterations = results.iterations;
+                            app.extent = results.extent;
+                            app.queryFeatureSnapshots();
+                        }
                 });
             } else {
-                app.extent = app.getReleaseExtent(app.releases);
-                if (app.releases.length===0) {
-                    app.add({html:"No Releases found with this name: "+app.configReleases});
-                    return;
-                }
-
-                configs = [
-                    {
-                        model  : "Iteration",
-                        fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
-                        filters: app.createIterationFilter(app.releases)
+                if (app.parentIds.split(",")[0] !=="") {
+                    // app.queryEpicFeatures();
+                    var strategy = Ext.create("FeaturesForParentStrategy", {
+                        portfolioIds : app.parentIds,
+                        featureType : app.featureType,
+                        context : app.getContext()
+                    });
+                    strategy.readFeatures( function(results,error) {
+                        if (error) {
+                            app.add({html:error});
+                            return;
+                        } else {
+                            console.log("Read features",results.features.length,results.extent,results.iterations.length);
+                            app.features = results.features;
+                            app.iterations = results.iterations;
+                            app.extent = results.extent;
+                            app.queryFeatureSnapshots();
+                        }
+                    });
+                } else {
+                    app.extent = app.getReleaseExtent(app.releases);
+                    if (app.releases.length===0) {
+                        app.add({html:"No Releases found with this name: "+app.configReleases});
+                        return;
                     }
-                ];
 
-                // get the iterations
-                async.map( configs, app.wsapiQuery, function(err,results) {
-                    app.iterations = results[0];
-                    app.queryFeatures();
-                });
+                    configs = [
+                        {
+                            model  : "Iteration",
+                            fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
+                            filters: app.createIterationFilter(app.releases)
+                        }
+                    ];
+
+                    // get the iterations
+                    async.map( configs, app.wsapiQuery, function(err,results) {
+                        app.iterations = results[0];
+                        app.queryFeatures();
+                    });
+                }
             }
         });
     },
@@ -281,7 +281,6 @@ Ext.define('CustomApp', {
 
     queryEpicFeatures : function() {
 
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
 
         var filter = null;
         var parentIds = app.parentIds.split(",");
@@ -324,7 +323,6 @@ Ext.define('CustomApp', {
 
     queryFeatures : function() {
 
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
         var filter = null;
 
         var releaseNames = _.uniq(_.map(app.releases,function(r){ return r.get("Name");}));
@@ -483,7 +481,6 @@ Ext.define('CustomApp', {
         // console.log("Last Historical Projection",_.last(series[6].data));
         
         var chart = this.down("#chart1");
-        myMask.hide();
         if (chart !== null)
             chart.removeAll();
             
@@ -1012,7 +1009,7 @@ Ext.define("FeaturesForParentStrategy", function() {
 
         findFeatureSnapShots : function( parentIds, callback ) {
 
-            console.log("ParentIDs",parentIds);
+            console.log("ParentIDs",parentIds, "featureType", self.featureType);
             var storeConfig = {
                 find : {
                     '_TypeHierarchy' : { "$in" : [self.featureType] },
@@ -1095,7 +1092,7 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
 
     return {
 
-		extend : "FeaturesForParentStrategy",
+        extend : "FeaturesForParentStrategy",
 
         config : {
             featureType : "",
@@ -1107,18 +1104,36 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
         constructor:function(config) {
             self = this;
             this.initConfig(config);
+            // this.mergeConfig(config);
+            this.callParent([this.config]);
             return this;
         },
 
         readFeatures : function(callback) {
 
-            self.getParents(self.parentQueryType, self.parentQuery, function(parentOids,error) {
-                if (error) {
+            self.getParents(self.parentQueryType, self.parentQuery, function(parents,error) {
+                var oids = _.map(parents,function(i){return i.get("ObjectID");});
+                console.log("parentOids",oids);
+                self.findFeatureSnapShots(oids,function(snapshots) {
+                    var featureIds = _.map(snapshots,function(s) { return s.get("ObjectID")});
+                    if (snapshots.length===0) {
+                        callback( null, "No features found for selected parents");
+                        return;
+                    } 
+                    self.getFeatures(featureIds,function(features) {
+                        console.log("features",features);
+                        var extent = self.getPortfolioItemExtent(parents);
+                        if (!extent.valid) {
+                            callback(null,"At least one of the portfolio items selected must have a planned start and end date set to define the chart date range");
+                            return;
+                        }
+                        self.getIterations(extent,function(iterations) {
 
-                } else {
-                    console.log("parentOids",parentOids);
-                }
+                            callback( { features : features, extent : extent, iterations : iterations }, error);
+                        });
 
+                    });
+                });
             });
 
         },
@@ -1130,19 +1145,20 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
         getParents : function( parentType, parentQuery, callback) {
 
             var filter = Ext.create('TSStringFilter', { query_string:parentQuery } );
+            console.log("Filter:",filter.toString());
         
             Ext.create('Rally.data.WsapiDataStore',{
                 model: parentType,
                 autoLoad: true,
                 limit: 'Infinity',
                 filters: filter,
-                fetch: ['ObjectID'],
+                fetch: ['ObjectID','PlannedStartDate','PlannedEndDate'],
                 listeners: {
                     scope: this,
                     load: function(store,items,successful,opts){
                         if ( successful ) {
-                            var oids = _.map(items,function(i){return i.get("ObjectID");});
-                            callback(oids);
+                            console.log("items",items);
+                            callback(items);
                         } else {
                             callback(null,("Error loading filter"));
                         }
