@@ -10,6 +10,7 @@
       "src/utility.js",
       "src/features-for-parent-strategy.js",
       "src/features-for-portfolio-query-strategy.js",
+      "src/_ts-string-filter.js",
       "https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js",
       "https://cdnjs.cloudflare.com/ajax/libs/async/1.22/async.min.js"
    ],

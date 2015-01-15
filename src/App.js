@@ -1,8 +1,4 @@
-var acceptedPointsData = [];
-var acceptedCountData = [];
-var myMask = null;
 var app = null;
-var showAssignedProgram = true;
 
 Ext.define('CustomApp', {
     scopeType: 'release',
@@ -14,9 +10,9 @@ Ext.define('CustomApp', {
 
         defaultSettings : {
             releases                : "",
-            parentQuery             : "",
-            parentType              : null,
-            parentIds               : "S3",
+            parentQuery             : '(Name = "Initiative 1")',
+            parentQueryType         : "Initiative",
+            parentIds               : "",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -45,21 +41,27 @@ Ext.define('CustomApp', {
             {
                 name: 'releases',
                 xtype: 'rallytextfield',
-                label : "Release names to be included (comma seperated)"
+                label : "(Optional) Release names to be included (comma seperated)"
             },
-            {
-                name: 'parentQuery',
-                xtype: 'rallytextfield',
-                label : "Query for feature parent Portfolio items (will override release selection)",
-                width : 250
-            },
-
             {
                 name: 'parentIds',
                 xtype: 'rallytextfield',
                 label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
             },
-
+            {   
+                name: 'parentQueryType',
+                xtype: 'rallytextfield',
+                label : "(Optional) Type of Parent PortfolioItem to apply filter below"
+            },            
+            {
+                xtype:'textareafield',
+                grow: true,
+                name:'parentQuery',
+                labelAlign: 'top',
+                width: 500,
+                // margin: 10,
+                fieldLabel:'(Optional) Limit to items that currently meet this query:'
+            },
             {
                 name: 'ignoreZeroValues',
                 xtype: 'rallycheckboxfield',
@@ -83,6 +85,7 @@ Ext.define('CustomApp', {
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.parentIds = app.getSetting("parentIds");
         app.parentQuery = app.getSetting("parentQuery");
+        app.parentQueryType = app.getSetting("parentQueryType");
 
         if ( (app.configReleases==="") && (app.parentIds==="") && 
              (app.parentType===null && app.parentQuery==="") ) {
@@ -125,47 +128,69 @@ Ext.define('CustomApp', {
             app.featureType = results[2][0].get("TypePath");
 
             // choose which strategy to use to filter features.
+            if (app.parentQueryType!=="" && app.parentQuery!=="") {
 
-            if (app.parentIds.split(",")[0] !=="") {
-                myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
-                // app.queryEpicFeatures();
-                var strategy = Ext.create("FeaturesForParentStrategy", {
-                    portfolioIds : app.parentIds,
+                var strategy = Ext.create("FeaturesForPortfolioQueryStrategy", {
                     featureType : app.featureType,
+                    parentQueryType : "PortfolioItem/" + app.parentQueryType,
+                    parentQuery : app.parentQuery,
                     context : app.getContext()
                 });
-                strategy.readFeatures( function(results,error) {
-                    if (error) {
-                        app.add({html:error});
-                        return;
-                    } else {
-                        console.log("Read features",results.features.length,results.extent,results.iterations.length);
-                        app.features = results.features;
-                        app.iterations = results.iterations;
-                        app.extent = results.extent;
-                        app.queryFeatureSnapshots();
-                    }
+                strategy.readFeatures(function(results,error){
+                        if (error) {
+                            app.add({html:error});
+                            return;
+                        } else {
+                            myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
+
+                            console.log("Read features",results.features.length,results.extent,results.iterations.length);
+                            app.features = results.features;
+                            app.iterations = results.iterations;
+                            app.extent = results.extent;
+                            app.queryFeatureSnapshots();
+                        }
                 });
             } else {
-                app.extent = app.getReleaseExtent(app.releases);
-                if (app.releases.length===0) {
-                    app.add({html:"No Releases found with this name: "+app.configReleases});
-                    return;
-                }
-
-                configs = [
-                    {
-                        model  : "Iteration",
-                        fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
-                        filters: app.createIterationFilter(app.releases)
+                if (app.parentIds.split(",")[0] !=="") {
+                    // app.queryEpicFeatures();
+                    var strategy = Ext.create("FeaturesForParentStrategy", {
+                        portfolioIds : app.parentIds,
+                        featureType : app.featureType,
+                        context : app.getContext()
+                    });
+                    strategy.readFeatures( function(results,error) {
+                        if (error) {
+                            app.add({html:error});
+                            return;
+                        } else {
+                            console.log("Read features",results.features.length,results.extent,results.iterations.length);
+                            app.features = results.features;
+                            app.iterations = results.iterations;
+                            app.extent = results.extent;
+                            app.queryFeatureSnapshots();
+                        }
+                    });
+                } else {
+                    app.extent = app.getReleaseExtent(app.releases);
+                    if (app.releases.length===0) {
+                        app.add({html:"No Releases found with this name: "+app.configReleases});
+                        return;
                     }
-                ];
 
-                // get the iterations
-                async.map( configs, app.wsapiQuery, function(err,results) {
-                    app.iterations = results[0];
-                    app.queryFeatures();
-                });
+                    configs = [
+                        {
+                            model  : "Iteration",
+                            fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
+                            filters: app.createIterationFilter(app.releases)
+                        }
+                    ];
+
+                    // get the iterations
+                    async.map( configs, app.wsapiQuery, function(err,results) {
+                        app.iterations = results[0];
+                        app.queryFeatures();
+                    });
+                }
             }
         });
     },
@@ -244,7 +269,6 @@ Ext.define('CustomApp', {
 
     queryEpicFeatures : function() {
 
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
 
         var filter = null;
         var parentIds = app.parentIds.split(",");
@@ -287,7 +311,6 @@ Ext.define('CustomApp', {
 
     queryFeatures : function() {
 
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
         var filter = null;
 
         var releaseNames = _.uniq(_.map(app.releases,function(r){ return r.get("Name");}));
@@ -446,7 +469,6 @@ Ext.define('CustomApp', {
         // console.log("Last Historical Projection",_.last(series[6].data));
         
         var chart = this.down("#chart1");
-        myMask.hide();
         if (chart !== null)
             chart.removeAll();
             

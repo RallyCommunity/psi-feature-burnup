@@ -26,7 +26,7 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentQuery             : "",
-            parentType              : null,
+            parentQueryType         : null,
             parentIds               : "S3",
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
@@ -59,18 +59,39 @@ Ext.define('CustomApp', {
                 label : "Release names to be included (comma seperated)"
             },
             {
-                name: 'parentQuery',
-                xtype: 'rallytextfield',
-                label : "Query for feature parent Portfolio items (will override release selection)",
-                width : 250
-            },
-
-            {
                 name: 'parentIds',
                 xtype: 'rallytextfield',
                 label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
             },
-
+            {
+                name: 'parentQueryType',
+                xtype:'rallycombobox',
+                displayField: 'DisplayName',
+                fieldLabel: "(Optional) Type of Parent PortfolioItem (Epics) ids to filter Features by",
+                autoExpand: true,
+                storeConfig: {
+                    model:'TypeDefinition',
+                    filters: [
+                      {property:'Restorable',value:true}
+                    ]
+                },
+                labelWidth: 250,
+                labelAlign: 'left',
+                minWidth: 500,
+                margin: 0,
+                valueField:'TypePath',
+                bubbleEvents: ['select','ready'],
+                readyEvent: 'ready'
+            },
+            {
+                xtype:'textareafield',
+                grow: true,
+                name:'parentQuery',
+                labelAlign: 'top',
+                width: 500,
+                // margin: 10,
+                fieldLabel:'(Optional) Limit to items that currently meet this query:'
+            },
             {
                 name: 'ignoreZeroValues',
                 xtype: 'rallycheckboxfield',
@@ -94,6 +115,11 @@ Ext.define('CustomApp', {
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.parentIds = app.getSetting("parentIds");
         app.parentQuery = app.getSetting("parentQuery");
+        app.parentQueryType = app.getSetting("parentQueryType");
+
+        console.log(app.getSetting("parentQueryType"));
+        console.log("parentQueryType",app.parentQueryType);
+
 
         if ( (app.configReleases==="") && (app.parentIds==="") && 
              (app.parentType===null && app.parentQuery==="") ) {
@@ -1068,11 +1094,13 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
     var self;
 
     return {
+
 		extend : "FeaturesForParentStrategy",
 
         config : {
-            portfolioIds : "",
             featureType : "",
+            parentQueryType : "",
+            parentQuery : "",
             context : ""
         },
 
@@ -1080,12 +1108,82 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
             self = this;
             this.initConfig(config);
             return this;
+        },
+
+        readFeatures : function(callback) {
+
+            self.getParents(self.parentQueryType, self.parentQuery, function(parentOids,error) {
+                if (error) {
+
+                } else {
+                    console.log("parentOids",parentOids);
+                }
+
+            });
+
+        },
+
+        // read parent items based on parent query
+        // find all feature snapshots parented to those items.
+        // real all the wsapi features
+
+        getParents : function( parentType, parentQuery, callback) {
+
+            var filter = Ext.create('TSStringFilter', { query_string:parentQuery } );
+        
+            Ext.create('Rally.data.WsapiDataStore',{
+                model: parentType,
+                autoLoad: true,
+                limit: 'Infinity',
+                filters: filter,
+                fetch: ['ObjectID'],
+                listeners: {
+                    scope: this,
+                    load: function(store,items,successful,opts){
+                        if ( successful ) {
+                            var oids = _.map(items,function(i){return i.get("ObjectID");});
+                            callback(oids);
+                        } else {
+                            callback(null,("Error loading filter"));
+                        }
+                    }
+                }
+            });
         }
+
     }
 });
 
 
 
+                Ext.define('TSStringFilter',{
+    extend: 'Rally.data.QueryFilter',
+    config: {
+        query_string: ''
+    },
+    constructor: function(config) {
+        this.mergeConfig(config);
+        this.callParent([this.config]);
+    },
+    _createQueryString: function(property, operator, value) {
+        this.filter = this.fromQueryString(this.query_string);
+        return this.filter.toString();
+    },
+    /**
+     * Converts a query string into a Rally compatible QueryFilter
+     * @static
+     * @param {String} query The query string to convert into a QueryFilter
+     * @return {Rally.data.wsapi.Filter} A Rally.data.wsapi.Filter that will convert back to a query string if toString() is called
+     */
+    fromQueryString: function (query) {
+        var parser = Ext.create('Rally.data.util.QueryStringParser', {
+            string: query
+        });
+
+        var initial_expression = parser.parseExpression();
+        return initial_expression;
+    }
+});
 
             Rally.launchApp('CustomApp', {
                 name:"psi-feature-burnup",
