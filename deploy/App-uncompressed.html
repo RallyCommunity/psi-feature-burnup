@@ -23,8 +23,8 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentIds               : "",
-            parentType              : "",
-            parentQuery             : "",
+            parentType              : 'Initiative',
+            parentQuery             : '((FormattedID = "I1") or (FormattedID = "I2"))',
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -96,6 +96,7 @@ Ext.define('CustomApp', {
         app.parentIds = app.getSetting("parentIds");
         app.parentQueryType = app.getSetting("parentType");
         app.parentQuery = app.getSetting("parentQuery");
+        app.title = "Feature Burnup";
         
         console.log(app.getSettings());
 
@@ -159,6 +160,7 @@ Ext.define('CustomApp', {
                             app.features = results.features;
                             app.iterations = results.iterations;
                             app.extent = results.extent;
+                            app.title = results.title;
                             app.queryFeatureSnapshots();
                         }
                 });
@@ -179,6 +181,7 @@ Ext.define('CustomApp', {
                             app.features = results.features;
                             app.iterations = results.iterations;
                             app.extent = results.extent;
+                            app.title = results.title;
                             app.queryFeatureSnapshots();
                         }
                     });
@@ -504,7 +507,7 @@ Ext.define('CustomApp', {
                 chart: {
                 },
                 title: {
-                text: 'PSI Feature Burnup ('+ app.configReleases  +')',
+                text: app.title,
                 x: -20 //center
                 },
                 plotOptions: {
@@ -911,6 +914,14 @@ Ext.define("FeaturesForParentStrategy", function() {
             return this;
         },
 
+        createTitle : function( parents ) {
+            var title = "Burnup for Portfolio Items (" + 
+                _.first( _.map(parents,function(p){return p.get("FormattedID");}),4) +
+                (parents.length>4?"...":"") +
+                ")";
+            return title
+        },
+
         piArray : function() {
             return self.portfolioIds.split(",");
         },
@@ -964,7 +975,11 @@ Ext.define("FeaturesForParentStrategy", function() {
                                 self.getFeatures(featureIds,function(features) {
                                     var error = (features.length > 0) ? null : "No features found for selected parents:" + self.piArray().join(",");
                                     console.log("features",_.map(features,function(f){return f.get("FormattedID");}));
-                                    callback( { features : features, extent : extent, iterations : iterations }, error);
+                                    callback( { 
+                                        features : features, 
+                                        extent : extent, 
+                                        iterations : iterations, 
+                                        title : self.createTitle(parents) }, error);
                                 });
                             });
                         });
@@ -1109,6 +1124,11 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
             return this;
         },
 
+        // createTitle : function( parents ) {
+        //     var title = "Burnup for Portfolio Items (" + _.map(parents,function(p){return p.get("FormattedID");}) + ")";
+        //     return title
+        // },
+
         readFeatures : function(callback) {
 
             self.getParents(self.parentQueryType, self.parentQuery, function(parents,error) {
@@ -1128,8 +1148,7 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
                             return;
                         }
                         self.getIterations(extent,function(iterations) {
-
-                            callback( { features : features, extent : extent, iterations : iterations }, error);
+                            callback( { features : features, extent : extent, iterations : iterations, title : self.createTitle(parents) }, error);
                         });
 
                     });
@@ -1152,7 +1171,7 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
                 autoLoad: true,
                 limit: 'Infinity',
                 filters: filter,
-                fetch: ['ObjectID','PlannedStartDate','PlannedEndDate'],
+                fetch: ['FormattedID','ObjectID','PlannedStartDate','PlannedEndDate'],
                 listeners: {
                     scope: this,
                     load: function(store,items,successful,opts){

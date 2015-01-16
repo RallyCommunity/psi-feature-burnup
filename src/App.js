@@ -12,8 +12,8 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentIds               : "",
-            parentType              : "",
-            parentQuery             : "",
+            parentType              : 'Initiative',
+            parentQuery             : '((FormattedID = "I1") or (FormattedID = "I2"))',
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -85,6 +85,7 @@ Ext.define('CustomApp', {
         app.parentIds = app.getSetting("parentIds");
         app.parentQueryType = app.getSetting("parentType");
         app.parentQuery = app.getSetting("parentQuery");
+        app.title = "Feature Burnup";
         
         console.log(app.getSettings());
 
@@ -148,6 +149,7 @@ Ext.define('CustomApp', {
                             app.features = results.features;
                             app.iterations = results.iterations;
                             app.extent = results.extent;
+                            app.title = results.title;
                             app.queryFeatureSnapshots();
                         }
                 });
@@ -168,6 +170,7 @@ Ext.define('CustomApp', {
                             app.features = results.features;
                             app.iterations = results.iterations;
                             app.extent = results.extent;
+                            app.title = results.title;
                             app.queryFeatureSnapshots();
                         }
                     });
@@ -493,7 +496,7 @@ Ext.define('CustomApp', {
                 chart: {
                 },
                 title: {
-                text: 'PSI Feature Burnup ('+ app.configReleases  +')',
+                text: app.title,
                 x: -20 //center
                 },
                 plotOptions: {
