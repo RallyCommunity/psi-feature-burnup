@@ -43,7 +43,7 @@ function snapshotQuery( config ,callback) {
         listeners : {
             scope : this,
             load  : function(store,snapshots,success) {
-                console.log("snapshots:",snapshots.length);
+                // console.log("snapshots:",snapshots.length);
                 callback(null,snapshots);
             }
         }
@@ -99,8 +99,11 @@ function createColorsArray( series ) {
 
 function trimHighChartsConfig(hc) {
 
+    // console.log("hc",hc);
+
     // trim future values
     var today = new Date();
+
     _.each(hc, function(series,i) {
         // for non-projection values dont chart after today
         if (series.name.indexOf("Projection")===-1 && series.name.indexOf("label") ===-1 ) {
@@ -111,7 +114,7 @@ function trimHighChartsConfig(hc) {
         }
         // for projection null values before today.
         if (series.name.indexOf("Projection")!==-1) {
-            console.log("projection series",series);
+            // console.log("projection series",series);
             _.each( series.data, function( point , x ){
                 if ( Date.parse(hc[0].data[x]) < today ) {
                     series.data[x] = null;
@@ -123,6 +126,7 @@ function trimHighChartsConfig(hc) {
         }
 
     });
+    // console.log("hc",hc);
 
     return hc;
 }

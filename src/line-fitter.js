@@ -27,6 +27,7 @@ LineFitter.prototype = {
 
 function linearProject(data, x)
 {
+
     var fitter = new LineFitter();
     for (var i = 0; i < data.length; i++)
     {
@@ -45,3 +46,11 @@ function projectToZero( data, x) {
     return start;
 
 }
+
+// var data = [null, null, null, null, null, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 331, 299, 299, 299, 299, 299, 299, 299, 299];
+
+// console.log(
+//     linearProject(
+//         _.filter(data,function(d) { return d !== null;}),
+//         0));
+

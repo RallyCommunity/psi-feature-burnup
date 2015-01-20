@@ -12,8 +12,8 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentIds               : "",
-            parentType              : 'Initiative',
-            parentQuery             : '((FormattedID = "I1") or (FormattedID = "I2"))',
+            parentType              : '',
+            parentQuery             : '',
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -87,8 +87,6 @@ Ext.define('CustomApp', {
         app.parentQuery = app.getSetting("parentQuery");
         app.title = "Feature Burnup";
         
-        console.log(app.getSettings());
-
         if ( (app.configReleases==="") && (app.parentIds==="") && 
              (app.parentQueryType==="" && app.parentQuery==="") ) {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
@@ -318,7 +316,6 @@ Ext.define('CustomApp', {
         var filter = null;
 
         var releaseNames = _.uniq(_.map(app.releases,function(r){ return r.get("Name");}));
-        console.log("releaseNames",releaseNames);
 
         _.each( releaseNames , function( release, i ) {
             var f = Ext.create('Rally.data.QueryFilter', {
@@ -354,9 +351,6 @@ Ext.define('CustomApp', {
     queryFeatureSnapshots : function () {
 
         var ids = _.pluck(app.features, function(feature) { return feature.get("ObjectID");} );
-        // var pes = _.pluck(app.features, function(feature) { return feature.get("PreliminaryEstimate");} );
-        // var extent = app.getReleaseExtent(app.releases);
-        // console.log("ids",ids,pes);
 
         var storeConfig = {
             find : {
@@ -374,7 +368,6 @@ Ext.define('CustomApp', {
         storeConfig.listeners = {
             scope : this,
             load: function(store, snapshots, success) {
-                console.log("Loaded:"+snapshots.length," Snapshots.");
                 app.createChartData(snapshots);
             }
         };
@@ -468,10 +461,6 @@ Ext.define('CustomApp', {
 
         var that = this;
 
-        // console.log("series",series);
-        // console.log("Last Accepted Projection  ",_.last(series[5].data));
-        // console.log("Last Historical Projection",_.last(series[6].data));
-        
         var chart = this.down("#chart1");
         if (chart !== null)
             chart.removeAll();
