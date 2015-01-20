@@ -23,8 +23,8 @@ Ext.define('CustomApp', {
         defaultSettings : {
             releases                : "",
             parentIds               : "",
-            parentType              : 'Initiative',
-            parentQuery             : '((FormattedID = "I1") or (FormattedID = "I2"))',
+            parentType              : '',
+            parentQuery             : '',
             ignoreZeroValues        : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
@@ -98,8 +98,6 @@ Ext.define('CustomApp', {
         app.parentQuery = app.getSetting("parentQuery");
         app.title = "Feature Burnup";
         
-        console.log(app.getSettings());
-
         if ( (app.configReleases==="") && (app.parentIds==="") && 
              (app.parentQueryType==="" && app.parentQuery==="") ) {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
@@ -329,7 +327,6 @@ Ext.define('CustomApp', {
         var filter = null;
 
         var releaseNames = _.uniq(_.map(app.releases,function(r){ return r.get("Name");}));
-        console.log("releaseNames",releaseNames);
 
         _.each( releaseNames , function( release, i ) {
             var f = Ext.create('Rally.data.QueryFilter', {
@@ -365,9 +362,6 @@ Ext.define('CustomApp', {
     queryFeatureSnapshots : function () {
 
         var ids = _.pluck(app.features, function(feature) { return feature.get("ObjectID");} );
-        // var pes = _.pluck(app.features, function(feature) { return feature.get("PreliminaryEstimate");} );
-        // var extent = app.getReleaseExtent(app.releases);
-        // console.log("ids",ids,pes);
 
         var storeConfig = {
             find : {
@@ -385,7 +379,6 @@ Ext.define('CustomApp', {
         storeConfig.listeners = {
             scope : this,
             load: function(store, snapshots, success) {
-                console.log("Loaded:"+snapshots.length," Snapshots.");
                 app.createChartData(snapshots);
             }
         };
@@ -479,10 +472,6 @@ Ext.define('CustomApp', {
 
         var that = this;
 
-        // console.log("series",series);
-        // console.log("Last Accepted Projection  ",_.last(series[5].data));
-        // console.log("Last Historical Projection",_.last(series[6].data));
-        
         var chart = this.down("#chart1");
         if (chart !== null)
             chart.removeAll();
@@ -646,7 +635,6 @@ Ext.define('CustomApp', {
 
                 // that.data[seriesName] = _.pluck(seriesData,seriesName);
                 that.data[seriesName] = _.pluck(seriesData,projectOn);
-                // if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // filter to just values before today
                 that.data[seriesName] = _.filter(
                     that.data[seriesName], function(d,i) {
@@ -657,17 +645,16 @@ Ext.define('CustomApp', {
                         }
                     }
                 );
-                // if (seriesName==="Story Points") console.log(that.data[seriesName].length);
+                
                 // optionally remove zero values
                 var dx = that.data[seriesName].length;
                 if (self.ignoreZeroValues===true) {
                     that.data[seriesName] = _.filter(
                         that.data[seriesName], function(d,i) {
-                            return d !== 0;
+                            return (d !== 0 && d !== null);
                         }
                     );
                 }
-                // if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // if we do remove values from the data set then we need to save an offset
                 // so we are calculating the projection on the revised length
                 var dy = that.data[seriesName].length;
@@ -676,11 +663,11 @@ Ext.define('CustomApp', {
                 // calculate an offset between the projected value and the actual accepted values.
                 var lastAccepted = that.data[seriesName][that.data[seriesName].length-1];
                 var lastProjected = linearProject( that.data[seriesName], that.data[seriesName].length-1);
-                // if (seriesName==="Story Points")
-                //     console.log("la",lastAccepted,"lp",lastProjected);
                 that.pointsOffset[seriesName] = lastAccepted-lastProjected;
             }
+
             index = index - that.indexOffset[seriesName];
+
             var y = linearProject( that.data[seriesName], index) + that.pointsOffset[seriesName];
             return Math.round(y * 100) / 100;
         },
@@ -744,6 +731,7 @@ LineFitter.prototype = {
 
 function linearProject(data, x)
 {
+
     var fitter = new LineFitter();
     for (var i = 0; i < data.length; i++)
     {
@@ -762,6 +750,15 @@ function projectToZero( data, x) {
     return start;
 
 }
+
+// var data = [null, null, null, null, null, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 292, 331, 299, 299, 299, 299, 299, 299, 299, 299];
+
+// console.log(
+//     linearProject(
+//         _.filter(data,function(d) { return d !== null;}),
+//         0));
+
+
                 // utility methods
 
 // returns the release name if the app is on a page scoped to a release.
@@ -807,7 +804,7 @@ function snapshotQuery( config ,callback) {
         listeners : {
             scope : this,
             load  : function(store,snapshots,success) {
-                console.log("snapshots:",snapshots.length);
+                // console.log("snapshots:",snapshots.length);
                 callback(null,snapshots);
             }
         }
@@ -863,8 +860,11 @@ function createColorsArray( series ) {
 
 function trimHighChartsConfig(hc) {
 
+    // console.log("hc",hc);
+
     // trim future values
     var today = new Date();
+
     _.each(hc, function(series,i) {
         // for non-projection values dont chart after today
         if (series.name.indexOf("Projection")===-1 && series.name.indexOf("label") ===-1 ) {
@@ -875,7 +875,7 @@ function trimHighChartsConfig(hc) {
         }
         // for projection null values before today.
         if (series.name.indexOf("Projection")!==-1) {
-            console.log("projection series",series);
+            // console.log("projection series",series);
             _.each( series.data, function( point , x ){
                 if ( Date.parse(hc[0].data[x]) < today ) {
                     series.data[x] = null;
@@ -887,6 +887,7 @@ function trimHighChartsConfig(hc) {
         }
 
     });
+    // console.log("hc",hc);
 
     return hc;
 }
@@ -910,7 +911,7 @@ Ext.define("FeaturesForParentStrategy", function() {
             this.initConfig(config);
             // trim each value to remove extra spaces
             self.portfolioIds = _.map( self.piArray(), function(s) { return s.trim(); } ).join(",");
-            console.log(self.portfolioIds);
+            // console.log(self.portfolioIds);
             return this;
         },
 
@@ -936,12 +937,12 @@ Ext.define("FeaturesForParentStrategy", function() {
                 filters: [self.createPIFilter(self.piArray(),"FormattedID")],
                 listeners: {
                     load: function(store, parents) {
-                        console.log("Loaded:"+parents.length," Parents",parents);
+                        // console.log("Loaded:"+parents.length," Parents",parents);
                         // workaround because wsapi return objects of all types
                         parents = _.filter(parents,function(parent) {
                             return (_.indexOf( self.portfolioIds.split(","), parent.get("FormattedID")) !==-1);
                         });                       
-                        console.log("Loaded:"+parents.length," Parents",parents);
+                        // console.log("Loaded:"+parents.length," Parents",parents);
 
                         // validate that all were found
                         var diff = _.difference( self.piArray(), _.map(parents,function(p) { 
@@ -974,7 +975,7 @@ Ext.define("FeaturesForParentStrategy", function() {
 
                                 self.getFeatures(featureIds,function(features) {
                                     var error = (features.length > 0) ? null : "No features found for selected parents:" + self.piArray().join(",");
-                                    console.log("features",_.map(features,function(f){return f.get("FormattedID");}));
+                                    // console.log("features",_.map(features,function(f){return f.get("FormattedID");}));
                                     callback( { 
                                         features : features, 
                                         extent : extent, 
@@ -1003,7 +1004,7 @@ Ext.define("FeaturesForParentStrategy", function() {
             });
             
             var filter = f1.and(f2);
-            console.log("iteration filter:",filter.toString());
+            // console.log("iteration filter:",filter.toString());
             return filter;
         },
 
@@ -1018,13 +1019,13 @@ Ext.define("FeaturesForParentStrategy", function() {
                 });
                 filter = i === 0 ? f : filter.or(f);
             });
-            console.log("filter",filter.toString());
+            // console.log("filter",filter.toString());
             return filter;
         },
 
         findFeatureSnapShots : function( parentIds, callback ) {
 
-            console.log("ParentIDs",parentIds, "featureType", self.featureType);
+            // console.log("ParentIDs",parentIds, "featureType", self.featureType);
             var storeConfig = {
                 find : {
                     '_TypeHierarchy' : { "$in" : [self.featureType] },
@@ -1039,7 +1040,7 @@ Ext.define("FeaturesForParentStrategy", function() {
                 listeners : {
                     scope : this,
                     load: function(store, snapshots, success) {
-                        console.log("Loaded:"+snapshots.length," Snapshots.");
+                        // console.log("Loaded:"+snapshots.length," Snapshots.");
                         callback(snapshots);
                     }
                 }
@@ -1069,7 +1070,7 @@ Ext.define("FeaturesForParentStrategy", function() {
                 filters: [self.createIterationFilter(extent)],
                 listeners: {
                     load: function(store, iterations) {
-                        console.log("iterations",iterations);
+                        // console.log("iterations",iterations);
                         callback(iterations);
                     }
                 }
@@ -1133,7 +1134,7 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
 
             self.getParents(self.parentQueryType, self.parentQuery, function(parents,error) {
                 var oids = _.map(parents,function(i){return i.get("ObjectID");});
-                console.log("parentOids",oids);
+                // console.log("parentOids",oids);
                 self.findFeatureSnapShots(oids,function(snapshots) {
                     var featureIds = _.map(snapshots,function(s) { return s.get("ObjectID")});
                     if (snapshots.length===0) {
@@ -1141,7 +1142,7 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
                         return;
                     } 
                     self.getFeatures(featureIds,function(features) {
-                        console.log("features",features);
+                        // console.log("features",features);
                         var extent = self.getPortfolioItemExtent(parents);
                         if (!extent.valid) {
                             callback(null,"At least one of the portfolio items selected must have a planned start and end date set to define the chart date range");
@@ -1164,7 +1165,7 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
         getParents : function( parentType, parentQuery, callback) {
 
             var filter = Ext.create('TSStringFilter', { query_string:parentQuery } );
-            console.log("Filter:",filter.toString());
+            // console.log("Filter:",filter.toString());
         
             Ext.create('Rally.data.WsapiDataStore',{
                 model: parentType,
@@ -1176,7 +1177,7 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
                     scope: this,
                     load: function(store,items,successful,opts){
                         if ( successful ) {
-                            console.log("items",items);
+                            // console.log("items",items);
                             callback(items);
                         } else {
                             callback(null,("Error loading filter"));
