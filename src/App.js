@@ -8,7 +8,32 @@ Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
     componentCls: 'app',
+    itemId: 'burnupApp',
 
+    setSelectedRelease: function(releaseCombo) {
+        var releaseName = releaseCombo.getRecord().data.Name;
+
+        this.defaultRelease = releaseName;
+        this.createChart();
+    },
+    
+    items: [{
+        xtype: 'rallyreleasecombobox',
+        itemId: 'rallyRelease',
+        listeners: {
+            ready: function () {
+                var app = this.up('#burnupApp');
+
+                app.setSelectedRelease(this);                
+            },
+            select: function () {
+                var app = this.up('#burnupApp');
+
+                app.setSelectedRelease(this);                
+            }
+        }
+    }],
+    
     // switch to app configuration from ui selection
     config: {
 
@@ -66,14 +91,15 @@ Ext.define('CustomApp', {
         return values.concat(checkValues);
     },
 
-    launch: function() {
-
+    createChart: function() {
         app = this;
         app.series = createSeriesArray();
-        app.configReleases = app.getSetting("releases");
+        app.configReleases = app.getSetting("releases") || app.defaultRelease;
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.epicIds = app.getSetting("epicIds");
 
+        console.log('name', this.down('#rallyRelease').getName());
+        
         if (app.configReleases==="") {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
             return;
@@ -272,7 +298,6 @@ Ext.define('CustomApp', {
 
         return Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
-//            model: 'PortfolioItem/Feature',
             model : app.featureType,
             limit : 'Infinity',
             fetch: ['ObjectID','FormattedID' ],
