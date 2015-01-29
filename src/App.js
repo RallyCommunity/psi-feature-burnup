@@ -11,6 +11,8 @@ Ext.define('CustomApp', {
     itemId: 'burnupApp',
 
     setSelectedRelease: function(releaseCombo) {
+        releaseCombo.setLoading(true);
+        
         var releaseName = releaseCombo.getRecord().data.Name;
 
         this.defaultRelease = releaseName;
@@ -19,20 +21,24 @@ Ext.define('CustomApp', {
     
     items: [{
         xtype: 'rallyreleasecombobox',
+        fieldLabel: 'Release',
+        labelAlign: 'right',
+        width: 300,
         itemId: 'rallyRelease',
         listeners: {
             ready: function () {
                 var app = this.up('#burnupApp');
-
-                app.setSelectedRelease(this);                
+                app.setSelectedRelease(this);
             },
             select: function () {
                 var app = this.up('#burnupApp');
-
-                app.setSelectedRelease(this);                
+                app.setSelectedRelease(this);
             }
         }
     }],
+    
+    launch: function() {
+    },
     
     // switch to app configuration from ui selection
     config: {
@@ -98,8 +104,6 @@ Ext.define('CustomApp', {
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.epicIds = app.getSetting("epicIds");
 
-        console.log('name', this.down('#rallyRelease').getName());
-        
         if (app.configReleases==="") {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
             return;
@@ -310,7 +314,7 @@ Ext.define('CustomApp', {
                         app.add({html:"No features in release(s):"+app.configReleases});
                         return;
                     } else {
-                    app.queryFeatureSnapshots();
+                        app.queryFeatureSnapshots();
                     }
                 }
             }
@@ -431,7 +435,10 @@ Ext.define('CustomApp', {
     },
 
     showChart : function(series) {
+        var releaseCombo = this.down('#rallyRelease');
 
+        releaseCombo.setLoading(false);
+        
         var that = this;
 
         // console.log("series",series);
@@ -506,7 +513,6 @@ Ext.define('CustomApp', {
         _.each(elems, function(e) { e.remove(); });
         var elems = p.query("div.x-mask-msg");
         _.each(elems, function(e) { e.remove(); });
-
     }
 
 });
