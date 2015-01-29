@@ -3,7 +3,7 @@
 <head>
     <title>psi-feature-burnup</title>
 
-    <script type="text/javascript" src="/apps/2.0rc2/sdk.js"></script>
+    <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
     <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/async/1.22/async.min.js"></script>
 
@@ -19,7 +19,42 @@ Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
     componentCls: 'app',
+    itemId: 'burnupApp',
 
+    setSelectedRelease: function(releaseCombo) {
+        releaseCombo.setLoading(true);
+        
+        var releaseName = releaseCombo.getRecord().data.Name;
+
+        this.defaultRelease = releaseName;
+        console.log('setSelected');
+        this.createChart();
+    },
+    
+    items: [{
+        xtype: 'rallyreleasecombobox',
+        fieldLabel: 'Release',
+        labelAlign: 'right',
+        width: 300,
+        itemId: 'rallyRelease',
+        listeners: {
+            ready: function () {
+                console.log('ready');
+                var app = this.up('#burnupApp');
+                
+                app.setSelectedRelease(this);
+            },
+            select: function () {
+                var app = this.up('#burnupApp');
+                app.setSelectedRelease(this);
+            }
+        }
+    }],
+    
+    launch: function() {
+        console.log('launch function');
+    },
+    
     // switch to app configuration from ui selection
     config: {
 
@@ -71,17 +106,16 @@ Ext.define('CustomApp', {
 
         _.each(values,function(value){
             value.labelWidth = 250;
-            value.labelAlign = 'left'
+            value.labelAlign = 'left';
         });
 
         return values.concat(checkValues);
     },
 
-    launch: function() {
-
+    createChart: function() {
         app = this;
         app.series = createSeriesArray();
-        app.configReleases = app.getSetting("releases");
+        app.configReleases = app.getSetting("releases") || app.defaultRelease;
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.epicIds = app.getSetting("epicIds");
 
@@ -101,6 +135,8 @@ Ext.define('CustomApp', {
 
         var configs = [];
         
+        console.log('project id', this.project);
+        
         // query for estimate values, releases and iterations.
         configs.push({ model : "PreliminaryEstimate", 
                        fetch : ['Name','ObjectID','Value'], 
@@ -114,6 +150,10 @@ Ext.define('CustomApp', {
                        fetch : true,
                        filters : [ { property:"Ordinal", operator:"=", value:0} ]
         });
+        configs.push({ model : "Milestone",
+                       fetch : ['Name', 'TargetDate', 'Color'],
+                       filters : [ { property:'Projects', operator: 'contains', value:'project/' + this.project } ]
+        });
 
         // get the preliminary estimate type values, and the releases.
         async.map( configs, app.wsapiQuery, function(err,results) {
@@ -121,7 +161,8 @@ Ext.define('CustomApp', {
             app.peRecords   = results[0];
             app.releases    = results[1];
             app.featureType = results[2][0].get("TypePath");
-
+            app.milestones  = results[3];
+            
             if (app.releases.length===0) {
                 app.add({html:"No Releases found with this name: "+app.configReleases});
                 return;
@@ -130,7 +171,7 @@ Ext.define('CustomApp', {
             configs = [
                 {
                     model  : "Iteration",
-                    fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
+                    fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate'],
                     filters: app.createIterationFilter(app.releases)
                 }
             ];
@@ -153,8 +194,6 @@ Ext.define('CustomApp', {
     trimString : function (str) {
         return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
     },
-
-
 
     // creates a filter to return all releases with a specified set of names
     createReleaseFilter : function(releaseNames) {
@@ -283,7 +322,6 @@ Ext.define('CustomApp', {
 
         return Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
-//            model: 'PortfolioItem/Feature',
             model : app.featureType,
             limit : 'Infinity',
             fetch: ['ObjectID','FormattedID' ],
@@ -296,7 +334,7 @@ Ext.define('CustomApp', {
                         app.add({html:"No features in release(s):"+app.configReleases});
                         return;
                     } else {
-                    app.queryFeatureSnapshots();
+                        app.queryFeatureSnapshots();
                     }
                 }
             }
@@ -385,7 +423,6 @@ Ext.define('CustomApp', {
     },
 
     createPlotLines : function(seriesData) {
-
         // filter the iterations
         var start = new Date( Date.parse(seriesData[0]));
         var end   = new Date( Date.parse(seriesData[seriesData.length-1]));
@@ -412,12 +449,23 @@ Ext.define('CustomApp', {
                 value: _.indexOf(seriesData,d)
             }; 
         });
-        return itPlotLines.concat(rePlotLines);
-
+        // create milestones lines
+        var miPlotLines = [{
+            label: 'milestones',
+            dashStyle : 'Solid',
+            color: 'Green',
+            width: 1,
+            value: 25
+        }];
+        
+        return itPlotLines.concat(rePlotLines).concat(miPlotLines);
     },
 
     showChart : function(series) {
+        var releaseCombo = this.down('#rallyRelease');
 
+        releaseCombo.setLoading(false);
+        
         var that = this;
 
         // console.log("series",series);
@@ -431,6 +479,8 @@ Ext.define('CustomApp', {
             
         // create plotlines
         var plotlines = this.createPlotLines(series[0].data);
+        
+        console.log('plotlines', plotlines);
         
         // set the tick interval
         var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
@@ -492,7 +542,6 @@ Ext.define('CustomApp', {
         _.each(elems, function(e) { e.remove(); });
         var elems = p.query("div.x-mask-msg");
         _.each(elems, function(e) { e.remove(); });
-
     }
 
 });
@@ -567,7 +616,7 @@ Ext.define('CustomApp', {
             var today = new Date();
 
             var tdi = _.findIndex(dateSeries,function(d) {
-                return ( today.setHours(0,0,0,0) === new Date(Date.parse(d)).setHours(0,0,0,0))
+                return ( today.setHours(0,0,0,0) === new Date(Date.parse(d)).setHours(0,0,0,0));
             });
 
             return tdi !== -1 ? Math.round(tdi/2) : -1;

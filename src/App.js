@@ -16,10 +16,14 @@ Ext.define('CustomApp', {
         var releaseName = releaseCombo.getRecord().data.Name;
 
         this.defaultRelease = releaseName;
+        console.log('setSelected');
         this.createChart();
     },
     
-    items: [{
+    items: [],
+    
+    launch: function() {
+        this.add({
         xtype: 'rallyreleasecombobox',
         fieldLabel: 'Release',
         labelAlign: 'right',
@@ -27,7 +31,9 @@ Ext.define('CustomApp', {
         itemId: 'rallyRelease',
         listeners: {
             ready: function () {
+                console.log('ready');
                 var app = this.up('#burnupApp');
+                
                 app.setSelectedRelease(this);
             },
             select: function () {
@@ -35,9 +41,8 @@ Ext.define('CustomApp', {
                 app.setSelectedRelease(this);
             }
         }
-    }],
-    
-    launch: function() {
+    });
+        console.log('launch function');
     },
     
     // switch to app configuration from ui selection
@@ -91,7 +96,7 @@ Ext.define('CustomApp', {
 
         _.each(values,function(value){
             value.labelWidth = 250;
-            value.labelAlign = 'left'
+            value.labelAlign = 'left';
         });
 
         return values.concat(checkValues);
@@ -120,6 +125,8 @@ Ext.define('CustomApp', {
 
         var configs = [];
         
+        console.log('project id', this.project);
+        
         // query for estimate values, releases and iterations.
         configs.push({ model : "PreliminaryEstimate", 
                        fetch : ['Name','ObjectID','Value'], 
@@ -133,6 +140,10 @@ Ext.define('CustomApp', {
                        fetch : true,
                        filters : [ { property:"Ordinal", operator:"=", value:0} ]
         });
+        configs.push({ model : "Milestone",
+                       fetch : ['Name', 'TargetDate', 'DisplayColor'],
+                       filters : [ { property:'Projects', operator: 'contains', value:'project/' + this.project } ]
+        });
 
         // get the preliminary estimate type values, and the releases.
         async.map( configs, app.wsapiQuery, function(err,results) {
@@ -140,7 +151,8 @@ Ext.define('CustomApp', {
             app.peRecords   = results[0];
             app.releases    = results[1];
             app.featureType = results[2][0].get("TypePath");
-
+            app.milestones  = results[3];
+            
             if (app.releases.length===0) {
                 app.add({html:"No Releases found with this name: "+app.configReleases});
                 return;
@@ -149,7 +161,7 @@ Ext.define('CustomApp', {
             configs = [
                 {
                     model  : "Iteration",
-                    fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
+                    fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate'],
                     filters: app.createIterationFilter(app.releases)
                 }
             ];
@@ -172,8 +184,6 @@ Ext.define('CustomApp', {
     trimString : function (str) {
         return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
     },
-
-
 
     // creates a filter to return all releases with a specified set of names
     createReleaseFilter : function(releaseNames) {
@@ -401,37 +411,35 @@ Ext.define('CustomApp', {
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
         this.showChart( trimHighChartsConfig(hc) );
     },
+    
+    parsePlotLines: function(seriesData, dataArray, field, dashStyle, color) {
+        var plotlines = _.map(dataArray, function(record){
+            var d = new Date(Date.parse(record.raw[field])).toISOString().split("T")[0];
+            return {
+                label : record.get("Name"),
+                dashStyle : dashStyle || "Dot",
+                color: color || "grey",
+                width: 1,
+                value: _.indexOf(seriesData,d)
+            }; 
+        });
+        return plotlines;
+    },
 
-    createPlotLines : function(seriesData) {
-
+    createPlotLines: function(seriesData) {
+        var app = this;
+        
         // filter the iterations
         var start = new Date( Date.parse(seriesData[0]));
         var end   = new Date( Date.parse(seriesData[seriesData.length-1]));
         var releaseI = _.filter(this.iterations,function(i) { return i.get("EndDate") >= start && i.get("EndDate") <= end;});
         releaseI = _.uniq(releaseI,function(i) { return i.get("Name");});
-        var itPlotLines = _.map(releaseI, function(i){
-            var d = new Date(Date.parse(i.raw.EndDate)).toISOString().split("T")[0];
-            return {
-                label : i.get("Name"),
-                dashStyle : "Dot",
-                color: 'grey',
-                width: 1,
-                value: _.indexOf(seriesData,d)
-            }; 
-        });
-        // create release plot lines        
-        var rePlotLines = _.map(this.selectedReleases, function(i){
-            var d = new Date(Date.parse(i.raw.ReleaseDate)).toISOString().split("T")[0];
-            return {
-                label : i.get("Name"),
-                // dashStyle : "Dot",
-                color: 'grey',
-                width: 1,
-                value: _.indexOf(seriesData,d)
-            }; 
-        });
-        return itPlotLines.concat(rePlotLines);
-
+        
+        var itPlotLines = this.parsePlotLines(seriesData, releaseI, 'EndDate', 'dot', 'grey');
+        var rePlotLines = this.parsePlotLines(seriesData, this.selectedReleases, 'ReleaseData', 'dot', 'grey');
+        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate', 'solid', 'Green');
+        
+        return itPlotLines.concat(rePlotLines).concat(miPlotLines);
     },
 
     showChart : function(series) {
@@ -452,6 +460,8 @@ Ext.define('CustomApp', {
             
         // create plotlines
         var plotlines = this.createPlotLines(series[0].data);
+        
+        console.log('plotlines', plotlines);
         
         // set the tick interval
         var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
