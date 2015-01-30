@@ -153,7 +153,8 @@ Ext.define('CustomApp', {
                        fetch : ['Name', 'TargetDate', 'DisplayColor'],
                        filters : [
                                 Ext.create('Rally.data.QueryFilter', { property:'Projects', operator: 'contains', value:'project/' + this.project }).or(
-                                Ext.create('Rally.data.QueryFilter', { property:'TargetProject', operator: '=', value: null }))
+                                Ext.create('Rally.data.QueryFilter', { property:'TargetProject', operator: '=', value: null })).and(
+                                    Ext.create('Rally.data.QueryFilter', { property:'TargetDate', operator: '!=', value: null }))
                        ],
                        sorters: [{
                            property: 'TargetDate',
@@ -170,7 +171,8 @@ Ext.define('CustomApp', {
             app.milestones  = results[3];
             
             if (app.releases.length===0) {
-                app.add({html:"No Releases found with this name: "+app.configReleases});
+                app.resetChart("No Releases found with this name: "+app.configReleases);
+                
                 return;
             }
 
@@ -267,6 +269,38 @@ Ext.define('CustomApp', {
 
     },
 
+    resetChart: function(mesg) {
+        var chart = app.down("#chart1");
+        var releaseCombo = app.down('#rallyRelease');
+        
+        releaseCombo.setLoading(false);
+        
+        if (myMask)
+            myMask.hide();
+            
+        if (chart !== null) 
+            chart.removeAll();
+            
+        if (mesg) {
+            Rally.ui.notify.Notifier.show({message: mesg, color: 'red'});
+        } else {
+            Rally.ui.notify.Notifier.hide();
+        }
+    },
+    
+    queryOnLoad: function(store, features) {
+        console.log("Loaded:"+features.length," Features.");
+        
+        app.features = features;
+        
+        if (app.features.length === 0) {
+            app.resetChart('No features found for this release');
+            
+        } else {
+            app.queryFeatureSnapshots();
+        }
+    },
+    
     queryEpicFeatures : function() {
 
         myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
@@ -275,7 +309,8 @@ Ext.define('CustomApp', {
         var epicIds = app.epicIds.split(",");
 
         if (epicIds.length === 0) {
-            app.add({html:"No epic id's specified"+app.configReleases});
+            app.resetChart("No epic id's specified");
+            
             return;
         }
 
@@ -295,16 +330,7 @@ Ext.define('CustomApp', {
             fetch: ['ObjectID','FormattedID' ],
             filters: [filter],
             listeners: {
-                load: function(store, features) {
-                    console.log("Loaded:"+features.length," Features.");
-                    app.features = features;
-                    if (app.features.length === 0) {
-                        app.add({html:"No features for parent PortfolioItem :"+app.epicIds});
-                        return;
-                    } else {
-                    app.queryFeatureSnapshots();
-                    }
-                }
+                load: app.queryOnLoad
             }
         });        
 
@@ -334,16 +360,7 @@ Ext.define('CustomApp', {
             fetch: ['ObjectID','FormattedID' ],
             filters: [filter],
             listeners: {
-                load: function(store, features) {
-                    console.log("Loaded:"+features.length," Features.");
-                    app.features = features;
-                    if (app.features.length === 0) {
-                        app.add({html:"No features in release(s):"+app.configReleases});
-                        return;
-                    } else {
-                        app.queryFeatureSnapshots();
-                    }
-                }
+                load: app.queryOnLoad
             }
         });        
     },
@@ -429,15 +446,6 @@ Ext.define('CustomApp', {
         this.showChart( trimHighChartsConfig(hc) );
     },
     
-    registerTooltip: function(el, text) {
-        app.add({
-           
-        });
-    },
-    
-    hidePlotLineTooltip: function() {
-    },
-    
     parsePlotLines: function(seriesData, recordArray, dateField, plotLineStyle) {
         var yLabelOffset = 0;
         
@@ -516,10 +524,7 @@ Ext.define('CustomApp', {
         
         var that = this;
 
-        var chart = this.down("#chart1");
-        myMask.hide();
-        if (chart !== null)
-            chart.removeAll();
+        app.resetChart();
             
         // create plotlines
         var plotlines = this.createPlotLines(series[0].data);
