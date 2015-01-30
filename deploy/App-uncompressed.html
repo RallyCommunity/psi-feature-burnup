@@ -31,28 +31,30 @@ Ext.define('CustomApp', {
         this.createChart();
     },
     
-    items: [{
-        xtype: 'rallyreleasecombobox',
-        fieldLabel: 'Release',
-        labelAlign: 'right',
-        width: 300,
-        itemId: 'rallyRelease',
-        listeners: {
-            ready: function () {
-                console.log('ready');
-                var app = this.up('#burnupApp');
-                
-                app.setSelectedRelease(this);
-            },
-            select: function () {
-                var app = this.up('#burnupApp');
-                app.setSelectedRelease(this);
+    items: [
+        {
+            xtype: 'rallyreleasecombobox',
+            fieldLabel: 'Release',
+            labelAlign: 'right',
+            width: 300,
+            itemId: 'rallyRelease',
+            listeners: {
+                ready: function () {
+                    console.log('ready');
+                    var app = this.up('#burnupApp');
+                    
+                    app.setSelectedRelease(this);
+                },
+                select: function () {
+                    var app = this.up('#burnupApp');
+                    app.setSelectedRelease(this);
+                }
             }
         }
-    }],
+    ],
     
     launch: function() {
-        console.log('launch function');
+        app = this;
     },
     
     // switch to app configuration from ui selection
@@ -113,7 +115,6 @@ Ext.define('CustomApp', {
     },
 
     createChart: function() {
-        app = this;
         app.series = createSeriesArray();
         app.configReleases = app.getSetting("releases") || app.defaultRelease;
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
@@ -151,7 +152,7 @@ Ext.define('CustomApp', {
                        filters : [ { property:"Ordinal", operator:"=", value:0} ]
         });
         configs.push({ model : "Milestone",
-                       fetch : ['Name', 'TargetDate', 'Color'],
+                       fetch : ['Name', 'TargetDate', 'DisplayColor'],
                        filters : [ { property:'Projects', operator: 'contains', value:'project/' + this.project } ]
         });
 
@@ -421,42 +422,54 @@ Ext.define('CustomApp', {
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
         this.showChart( trimHighChartsConfig(hc) );
     },
+    
+    parsePlotLines: function(seriesData, dataArray, dateField, plotLineStyle) {
+        var plotlines = _.map(dataArray, function(record){
+            var d = new Date(Date.parse(record.raw[dateField])).toISOString().split("T")[0];
+            
+            var color = plotLineStyle.color || record.get("DisplayColor") || "grey";
+            
+            var plotLine = {
+                dashStyle: "Dot",
+                color: color,
+                width: 1,
+                value: _.indexOf(seriesData,d)
+            };
+            
+            if (plotLineStyle['showLabel'] === true) {
+                plotLine.label = {
+                    text: '<span style="font-family:Rally;color:' + color + '">8</span>' + record.get("Name"),
+                    rotation: 0,
+                    verticalAlign: 'top',
+                    y: 0,
+                    x: -6,
+                    textAlign: 'left',
+                    useHTML: true
+                };
+            }
+            
+            _.each(plotLineStyle, function(value, key) {
+                plotLine[key] = value;
+            }, this);
+            
+            
+            return plotLine;
+        });
+        return plotlines;
+    },
 
-    createPlotLines : function(seriesData) {
+    createPlotLines: function(seriesData) {
+        var app = this;
+        
         // filter the iterations
         var start = new Date( Date.parse(seriesData[0]));
         var end   = new Date( Date.parse(seriesData[seriesData.length-1]));
         var releaseI = _.filter(this.iterations,function(i) { return i.get("EndDate") >= start && i.get("EndDate") <= end;});
         releaseI = _.uniq(releaseI,function(i) { return i.get("Name");});
-        var itPlotLines = _.map(releaseI, function(i){
-            var d = new Date(Date.parse(i.raw.EndDate)).toISOString().split("T")[0];
-            return {
-                label : i.get("Name"),
-                dashStyle : "Dot",
-                color: 'grey',
-                width: 1,
-                value: _.indexOf(seriesData,d)
-            }; 
-        });
-        // create release plot lines        
-        var rePlotLines = _.map(this.selectedReleases, function(i){
-            var d = new Date(Date.parse(i.raw.ReleaseDate)).toISOString().split("T")[0];
-            return {
-                label : i.get("Name"),
-                // dashStyle : "Dot",
-                color: 'grey',
-                width: 1,
-                value: _.indexOf(seriesData,d)
-            }; 
-        });
-        // create milestones lines
-        var miPlotLines = [{
-            label: 'milestones',
-            dashStyle : 'Solid',
-            color: 'Green',
-            width: 1,
-            value: 25
-        }];
+        
+        var itPlotLines = this.parsePlotLines(seriesData, releaseI, 'EndDate',                  { dashStyle: 'dot', color: 'grey'} );
+        var rePlotLines = this.parsePlotLines(seriesData, this.selectedReleases, 'ReleaseDate', { dashStyle: 'dot', color: 'grey'} );
+        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate',        { dashStyle: 'dash', width: 2, showLabel: true} );
         
         return itPlotLines.concat(rePlotLines).concat(miPlotLines);
     },
@@ -468,10 +481,6 @@ Ext.define('CustomApp', {
         
         var that = this;
 
-        // console.log("series",series);
-        // console.log("Last Accepted Projection  ",_.last(series[5].data));
-        // console.log("Last Historical Projection",_.last(series[6].data));
-        
         var chart = this.down("#chart1");
         myMask.hide();
         if (chart !== null)

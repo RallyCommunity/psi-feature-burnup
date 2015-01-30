@@ -20,29 +20,30 @@ Ext.define('CustomApp', {
         this.createChart();
     },
     
-    items: [],
-    
-    launch: function() {
-        this.add({
-        xtype: 'rallyreleasecombobox',
-        fieldLabel: 'Release',
-        labelAlign: 'right',
-        width: 300,
-        itemId: 'rallyRelease',
-        listeners: {
-            ready: function () {
-                console.log('ready');
-                var app = this.up('#burnupApp');
-                
-                app.setSelectedRelease(this);
-            },
-            select: function () {
-                var app = this.up('#burnupApp');
-                app.setSelectedRelease(this);
+    items: [
+        {
+            xtype: 'rallyreleasecombobox',
+            fieldLabel: 'Release',
+            labelAlign: 'right',
+            width: 300,
+            itemId: 'rallyRelease',
+            listeners: {
+                ready: function () {
+                    console.log('ready');
+                    var app = this.up('#burnupApp');
+                    
+                    app.setSelectedRelease(this);
+                },
+                select: function () {
+                    var app = this.up('#burnupApp');
+                    app.setSelectedRelease(this);
+                }
             }
         }
-    });
-        console.log('launch function');
+    ],
+    
+    launch: function() {
+        app = this;
     },
     
     // switch to app configuration from ui selection
@@ -103,7 +104,6 @@ Ext.define('CustomApp', {
     },
 
     createChart: function() {
-        app = this;
         app.series = createSeriesArray();
         app.configReleases = app.getSetting("releases") || app.defaultRelease;
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
@@ -416,15 +416,25 @@ Ext.define('CustomApp', {
         var plotlines = _.map(dataArray, function(record){
             var d = new Date(Date.parse(record.raw[dateField])).toISOString().split("T")[0];
             
+            var color = plotLineStyle.color || record.get("DisplayColor") || "grey";
+            
             var plotLine = {
                 dashStyle: "Dot",
-                color: "grey",
+                color: color,
                 width: 1,
                 value: _.indexOf(seriesData,d)
-            }
+            };
             
             if (plotLineStyle['showLabel'] === true) {
-                plotLine.label = { text: record.get("Name") };
+                plotLine.label = {
+                    text: '<span style="font-family:Rally;color:' + color + '">8</span>' + record.get("Name"),
+                    rotation: 0,
+                    verticalAlign: 'top',
+                    y: 0,
+                    x: -6,
+                    textAlign: 'left',
+                    useHTML: true
+                };
             }
             
             _.each(plotLineStyle, function(value, key) {
@@ -448,7 +458,7 @@ Ext.define('CustomApp', {
         
         var itPlotLines = this.parsePlotLines(seriesData, releaseI, 'EndDate',                  { dashStyle: 'dot', color: 'grey'} );
         var rePlotLines = this.parsePlotLines(seriesData, this.selectedReleases, 'ReleaseDate', { dashStyle: 'dot', color: 'grey'} );
-        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate',        { dashStyle: 'solid', color: 'Green', showLabel: true} );
+        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate',        { dashStyle: 'dash', width: 2, showLabel: true} );
         
         return itPlotLines.concat(rePlotLines).concat(miPlotLines);
     },
