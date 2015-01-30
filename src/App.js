@@ -1,6 +1,5 @@
 var acceptedPointsData = [];
 var acceptedCountData = [];
-var myMask = null;
 var app = null;
 var showAssignedProgram = true;
 
@@ -10,16 +9,6 @@ Ext.define('CustomApp', {
     componentCls: 'app',
     itemId: 'burnupApp',
 
-    setSelectedRelease: function(releaseCombo) {
-        releaseCombo.setLoading(true);
-        
-        var releaseName = releaseCombo.getRecord().data.Name;
-
-        this.defaultRelease = releaseName;
-        console.log('setSelected');
-        this.createChart();
-    },
-    
     items: [
         {
             xtype: 'rallyreleasecombobox',
@@ -39,17 +28,22 @@ Ext.define('CustomApp', {
                     app.setSelectedRelease(this);
                 }
             }
-        }/*,
-        {
-            xtype: 'rallytooltip',
-            target: undefined,
-            html: '<p>' + text + '</p>'
-        }*/
+        }
     ],
+    
+    // Called when the release combo box is ready or selected.  This triggers the bulding of the chart.
+    setSelectedRelease: function(releaseCombo) {
+        releaseCombo.setLoading(true);
+        
+        var releaseName = releaseCombo.getRecord().data.Name;
+
+        this.defaultRelease = releaseName;
+        this.createChart();
+    },
+    
     
     launch: function() {
         app = this;
-        console.log('launch is called: app', app);
     },
     
     // switch to app configuration from ui selection
@@ -110,9 +104,8 @@ Ext.define('CustomApp', {
     },
 
     createChart: function() {
-        if (app === null) {
+        if (!app) {
             app = this;
-            console.log('settip app in createChart', app);
         }
         
         app.series = createSeriesArray();
@@ -270,16 +263,14 @@ Ext.define('CustomApp', {
     },
 
     resetChart: function(mesg) {
-        var chart = app.down("#chart1");
         var releaseCombo = app.down('#rallyRelease');
         
         releaseCombo.setLoading(false);
         
-        if (myMask)
-            myMask.hide();
-            
-        if (chart !== null) 
+        var chart = app.down("#chart1");
+        if (chart !== null) {
             chart.removeAll();
+        }
             
         if (mesg) {
             Rally.ui.notify.Notifier.show({message: mesg, color: 'red'});
@@ -288,23 +279,31 @@ Ext.define('CustomApp', {
         }
     },
     
-    queryOnLoad: function(store, features) {
-        console.log("Loaded:"+features.length," Features.");
+    executeFeatureQuery: function(filter) {
+        return Ext.create('Rally.data.WsapiDataStore', {
+            autoLoad: true,
+            model : app.featureType,
+            limit : 'Infinity',
+            fetch: ['ObjectID','FormattedID' ],
+            filters: [filter],
+            listeners: {
+                load: function(store, features) {
+                    console.log("Loaded:"+features.length," Features.");
         
-        app.features = features;
+                    app.features = features;
         
-        if (app.features.length === 0) {
-            app.resetChart('No features found for this release');
-            
-        } else {
-            app.queryFeatureSnapshots();
-        }
+                    if (app.features.length === 0) {
+                        app.resetChart('No features found for this release');
+                        
+                    } else {
+                        app.queryFeatureSnapshots();
+                    }
+                }
+            }
+        });        
     },
-    
+
     queryEpicFeatures : function() {
-
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
-
         var filter = null;
         var epicIds = app.epicIds.split(",");
 
@@ -323,26 +322,14 @@ Ext.define('CustomApp', {
             filter = i === 0 ? f : filter.or(f);
         });
 
-        return Ext.create('Rally.data.WsapiDataStore', {
-            autoLoad: true,
-            model : app.featureType,
-            limit : 'Infinity',
-            fetch: ['ObjectID','FormattedID' ],
-            filters: [filter],
-            listeners: {
-                load: app.queryOnLoad
-            }
-        });        
-
+        app.executeFeatureQuery(filter);
     },
-
+    
     queryFeatures : function() {
-
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
         var filter = null;
-
         var releaseNames = _.uniq(_.map(app.releases,function(r){ return r.get("Name");}));
-        console.log("releaseNames",releaseNames);
+        
+        console.log("releaseNames", releaseNames);
 
         _.each( releaseNames , function( release, i ) {
             var f = Ext.create('Rally.data.QueryFilter', {
@@ -353,16 +340,7 @@ Ext.define('CustomApp', {
             filter = i === 0 ? f : filter.or(f);
         });
 
-        return Ext.create('Rally.data.WsapiDataStore', {
-            autoLoad: true,
-            model : app.featureType,
-            limit : 'Infinity',
-            fetch: ['ObjectID','FormattedID' ],
-            filters: [filter],
-            listeners: {
-                load: app.queryOnLoad
-            }
-        });        
+        app.executeFeatureQuery(filter);
     },
     
     queryFeatureSnapshots : function () {
@@ -453,6 +431,8 @@ Ext.define('CustomApp', {
             var d = new Date(Date.parse(record.raw[dateField])).toISOString().split("T")[0];
             
             var color = plotLineStyle.color || record.get("DisplayColor") || "grey";
+            var labelHTML = '<span style="font-family:Rally;color:' + color + '">8</span>';
+            var hoverText = record.get("Name");
             
             var plotLine = {
                 dashStyle: "Dot",
@@ -461,9 +441,9 @@ Ext.define('CustomApp', {
                 value: _.indexOf(seriesData,d)
             };
             
-            if (plotLineStyle.showLabel === true) {
+            if (plotLineStyle.showLabel) {
                 plotLine.label = {
-                    text: '<span style="font-family:Rally;color:' + color + '">8</span>' + record.get("Name"),
+                    text: labelHTML + hoverText,
                     rotation: 0,
                     verticalAlign: 'top',
                     y: yLabelOffset % 2*15,
@@ -475,19 +455,28 @@ Ext.define('CustomApp', {
                 yLabelOffset++;
             }
             
-            if (plotLineStyle.canRemove === true) {
+            if (plotLineStyle.canRemove) {
                 var id = 'milestone-' + record.get("Name");
                 
                 plotLine.id = id;
                 plotLine.events = {
                     click: function (e) {
-                            var plotLineId = this.id;
-                            var axis       = this.axis;
-                        
-                            axis.removePlotLine(plotLineId);
-                        }
-                    // mouseover: app.registerTooltip(this, tooltipText)
-                    // mouseout: this.hidePlotLineTooltip
+                        var plotLineId = this.id;
+                        var axis       = this.axis;
+                        axis.removePlotLine(plotLineId);
+                    },
+                    mouseover: function () {
+                        console.log('mouseover');
+                        // var plotline = this;
+                        // plotline.label.text = labelHTML + hoverText;
+                        // plotline.axis.update();
+                    },
+                    mouseout: function () {
+                        console.log('mouseout');
+                        // var plotline = this;
+                        // plotline.label.text = labelHTML;
+                        // plotline.axis.update();
+                    }
                 };
             }
             
@@ -518,18 +507,12 @@ Ext.define('CustomApp', {
     },
 
     showChart : function(series) {
-        var releaseCombo = this.down('#rallyRelease');
-
-        releaseCombo.setLoading(false);
-        
         var that = this;
 
         app.resetChart();
             
         // create plotlines
         var plotlines = this.createPlotLines(series[0].data);
-        
-        console.log('plotlines', plotlines);
         
         // set the tick interval
         var tickInterval = series[1].data.length <= (7*20) ? 7 : (series[1].data.length / 20);
@@ -585,9 +568,18 @@ Ext.define('CustomApp', {
             }
         });
         this.add(extChart);
+        
+        app.clearLoading();
+    },
+    
+    // Even though we don't seem to set it explicitly, the chart is left with
+    // the loading mask on.  This hack turns it off on most browsers.
+    clearLoading: function() {
         chart = this.down("#chart1");
+        
         var p = Ext.get(chart.id);
         elems = p.query("div.x-mask");
+        
         _.each(elems, function(e) { e.remove(); });
         var elems = p.query("div.x-mask-msg");
         _.each(elems, function(e) { e.remove(); });
