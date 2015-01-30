@@ -164,9 +164,12 @@ Ext.define('CustomApp', {
                        fetch : ['Name', 'TargetDate', 'DisplayColor'],
                        filters : [
                                 Ext.create('Rally.data.QueryFilter', { property:'Projects', operator: 'contains', value:'project/' + this.project }).or(
-                                Ext.create('Rally.data.QueryFilter', { property:'Projects.Name', operator: '=', value: null }))
-                       ]
-                                 
+                                Ext.create('Rally.data.QueryFilter', { property:'TargetProject', operator: '=', value: null }))
+                       ],
+                       sorters: [{
+                           property: 'TargetDate',
+                           direction: 'DESC'
+                       }]
         });
 
         // get the preliminary estimate type values, and the releases.
@@ -269,7 +272,8 @@ Ext.define('CustomApp', {
                 load : function(store, data) {
                     callback(null,data);
                 }
-            }
+            },
+            sorters: config.sorters
         });
 
     },
@@ -445,8 +449,10 @@ Ext.define('CustomApp', {
     hidePlotLineTooltip: function() {
     },
     
-    parsePlotLines: function(seriesData, dataArray, dateField, plotLineStyle) {
-        var plotlines = _.map(dataArray, function(record){
+    parsePlotLines: function(seriesData, recordArray, dateField, plotLineStyle) {
+        var yLabelOffset = 0;
+        
+        var plotlines = _.map(recordArray, function(record){
             var d = new Date(Date.parse(record.raw[dateField])).toISOString().split("T")[0];
             
             var color = plotLineStyle.color || record.get("DisplayColor") || "grey";
@@ -463,11 +469,13 @@ Ext.define('CustomApp', {
                     text: '<span style="font-family:Rally;color:' + color + '">8</span>' + record.get("Name"),
                     rotation: 0,
                     verticalAlign: 'top',
-                    y: 0,
+                    y: yLabelOffset % 2*15,
                     x: -6,
                     textAlign: 'left',
                     useHTML: true
                 };
+                
+                yLabelOffset++;
             }
             
             if (plotLineStyle.canRemove === true) {
@@ -546,7 +554,7 @@ Ext.define('CustomApp', {
                 chart: {
                 },
                 title: {
-                text: 'PSI Feature Burnup ('+ app.configReleases  +')',
+                text: 'Release Burnup',
                 x: -20 //center
                 },
                 plotOptions: {
