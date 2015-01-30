@@ -412,16 +412,27 @@ Ext.define('CustomApp', {
         this.showChart( trimHighChartsConfig(hc) );
     },
     
-    parsePlotLines: function(seriesData, dataArray, field, dashStyle, color) {
+    parsePlotLines: function(seriesData, dataArray, dateField, plotLineStyle) {
         var plotlines = _.map(dataArray, function(record){
-            var d = new Date(Date.parse(record.raw[field])).toISOString().split("T")[0];
-            return {
-                label : record.get("Name"),
-                dashStyle : dashStyle || "Dot",
-                color: color || "grey",
+            var d = new Date(Date.parse(record.raw[dateField])).toISOString().split("T")[0];
+            
+            var plotLine = {
+                dashStyle: "Dot",
+                color: "grey",
                 width: 1,
                 value: _.indexOf(seriesData,d)
-            }; 
+            }
+            
+            if (plotLineStyle['showLabel'] === true) {
+                plotLine.label = { text: record.get("Name") };
+            }
+            
+            _.each(plotLineStyle, function(value, key) {
+                plotLine[key] = value;
+            }, this);
+            
+            
+            return plotLine;
         });
         return plotlines;
     },
@@ -435,9 +446,9 @@ Ext.define('CustomApp', {
         var releaseI = _.filter(this.iterations,function(i) { return i.get("EndDate") >= start && i.get("EndDate") <= end;});
         releaseI = _.uniq(releaseI,function(i) { return i.get("Name");});
         
-        var itPlotLines = this.parsePlotLines(seriesData, releaseI, 'EndDate', 'dot', 'grey');
-        var rePlotLines = this.parsePlotLines(seriesData, this.selectedReleases, 'ReleaseData', 'dot', 'grey');
-        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate', 'solid', 'Green');
+        var itPlotLines = this.parsePlotLines(seriesData, releaseI, 'EndDate',                  { dashStyle: 'dot', color: 'grey'} );
+        var rePlotLines = this.parsePlotLines(seriesData, this.selectedReleases, 'ReleaseDate', { dashStyle: 'dot', color: 'grey'} );
+        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate',        { dashStyle: 'solid', color: 'Green', showLabel: true} );
         
         return itPlotLines.concat(rePlotLines).concat(miPlotLines);
     },
@@ -449,10 +460,6 @@ Ext.define('CustomApp', {
         
         var that = this;
 
-        // console.log("series",series);
-        // console.log("Last Accepted Projection  ",_.last(series[5].data));
-        // console.log("Last Historical Projection",_.last(series[6].data));
-        
         var chart = this.down("#chart1");
         myMask.hide();
         if (chart !== null)
