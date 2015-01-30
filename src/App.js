@@ -39,11 +39,17 @@ Ext.define('CustomApp', {
                     app.setSelectedRelease(this);
                 }
             }
-        }
+        }/*,
+        {
+            xtype: 'rallytooltip',
+            target: undefined,
+            html: '<p>' + text + '</p>'
+        }*/
     ],
     
     launch: function() {
         app = this;
+        console.log('launch is called: app', app);
     },
     
     // switch to app configuration from ui selection
@@ -53,7 +59,7 @@ Ext.define('CustomApp', {
             releases                : "",
             epicIds                 : "",
             ignoreZeroValues        : true,
-            PreliminaryEstimate     : true,
+            PreliminaryEstimate     : false,
             StoryPoints             : true,
             StoryCount              : false,
             StoryPointsProjection   : true,
@@ -104,6 +110,11 @@ Ext.define('CustomApp', {
     },
 
     createChart: function() {
+        if (app === null) {
+            app = this;
+            console.log('settip app in createChart', app);
+        }
+        
         app.series = createSeriesArray();
         app.configReleases = app.getSetting("releases") || app.defaultRelease;
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
@@ -125,8 +136,6 @@ Ext.define('CustomApp', {
 
         var configs = [];
         
-        console.log('project id', this.project);
-        
         // query for estimate values, releases and iterations.
         configs.push({ model : "PreliminaryEstimate", 
                        fetch : ['Name','ObjectID','Value'], 
@@ -142,7 +151,11 @@ Ext.define('CustomApp', {
         });
         configs.push({ model : "Milestone",
                        fetch : ['Name', 'TargetDate', 'DisplayColor'],
-                       filters : [ { property:'Projects', operator: 'contains', value:'project/' + this.project } ]
+                       filters : [
+                                Ext.create('Rally.data.QueryFilter', { property:'Projects', operator: 'contains', value:'project/' + this.project }).or(
+                                Ext.create('Rally.data.QueryFilter', { property:'Projects.Name', operator: '=', value: null }))
+                       ]
+                                 
         });
 
         // get the preliminary estimate type values, and the releases.
@@ -171,7 +184,7 @@ Ext.define('CustomApp', {
 
                 app.iterations = results[0];
 
-                if (app.epicIds.split(",")[0] !=="")
+                if (app.epicIds && app.epicIds.split(",")[0] !=="")
                     app.queryEpicFeatures();
                 else
                     app.queryFeatures();
@@ -412,6 +425,15 @@ Ext.define('CustomApp', {
         this.showChart( trimHighChartsConfig(hc) );
     },
     
+    registerTooltip: function(el, text) {
+        app.add({
+           
+        });
+    },
+    
+    hidePlotLineTooltip: function() {
+    },
+    
     parsePlotLines: function(seriesData, dataArray, dateField, plotLineStyle) {
         var plotlines = _.map(dataArray, function(record){
             var d = new Date(Date.parse(record.raw[dateField])).toISOString().split("T")[0];
@@ -425,7 +447,7 @@ Ext.define('CustomApp', {
                 value: _.indexOf(seriesData,d)
             };
             
-            if (plotLineStyle['showLabel'] === true) {
+            if (plotLineStyle.showLabel === true) {
                 plotLine.label = {
                     text: '<span style="font-family:Rally;color:' + color + '">8</span>' + record.get("Name"),
                     rotation: 0,
@@ -434,6 +456,22 @@ Ext.define('CustomApp', {
                     x: -6,
                     textAlign: 'left',
                     useHTML: true
+                };
+            }
+            
+            if (plotLineStyle.canRemove === true) {
+                var id = 'milestone-' + record.get("Name");
+                
+                plotLine.id = id;
+                plotLine.events = {
+                    click: function (e) {
+                            var plotLineId = this.id;
+                            var axis       = this.axis;
+                        
+                            axis.removePlotLine(plotLineId);
+                        }
+                    // mouseover: app.registerTooltip(this, tooltipText)
+                    // mouseout: this.hidePlotLineTooltip
                 };
             }
             
@@ -458,7 +496,7 @@ Ext.define('CustomApp', {
         
         var itPlotLines = this.parsePlotLines(seriesData, releaseI, 'EndDate',                  { dashStyle: 'dot', color: 'grey'} );
         var rePlotLines = this.parsePlotLines(seriesData, this.selectedReleases, 'ReleaseDate', { dashStyle: 'dot', color: 'grey'} );
-        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate',        { dashStyle: 'dash', width: 2, showLabel: true} );
+        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate',        { dashStyle: 'dash', width: 2, showLabel: true, canRemove: true } );
         
         return itPlotLines.concat(rePlotLines).concat(miPlotLines);
     },
