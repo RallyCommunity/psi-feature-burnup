@@ -68,7 +68,7 @@ Ext.define("MyBurnCalculator", function() {
             var today = new Date();
 
             var tdi = _.findIndex(dateSeries,function(d) {
-                return ( today.setHours(0,0,0,0) === new Date(Date.parse(d)).setHours(0,0,0,0))
+                return ( today.setHours(0,0,0,0) === new Date(Date.parse(d)).setHours(0,0,0,0));
             });
 
             return tdi !== -1 ? Math.round(tdi/2) : -1;

@@ -3,7 +3,7 @@
 <head>
     <title>psi-feature-burnup</title>
 
-    <script type="text/javascript" src="/apps/2.0rc2/sdk.js"></script>
+    <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
     <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/async/1.22/async.min.js"></script>
 
@@ -11,7 +11,6 @@
         Rally.onReady(function () {
                 var acceptedPointsData = [];
 var acceptedCountData = [];
-var myMask = null;
 var app = null;
 var showAssignedProgram = true;
 
@@ -19,7 +18,45 @@ Ext.define('CustomApp', {
     scopeType: 'release',
     extend: 'Rally.app.App',
     componentCls: 'app',
+    itemId: 'burnupApp',
 
+    items: [
+        {
+            xtype: 'rallyreleasecombobox',
+            fieldLabel: 'Release',
+            labelAlign: 'right',
+            width: 300,
+            itemId: 'rallyRelease',
+            listeners: {
+                ready: function () {
+                    console.log('ready');
+                    var app = this.up('#burnupApp');
+                    
+                    app.setSelectedRelease(this);
+                },
+                select: function () {
+                    var app = this.up('#burnupApp');
+                    app.setSelectedRelease(this);
+                }
+            }
+        }
+    ],
+    
+    // Called when the release combo box is ready or selected.  This triggers the bulding of the chart.
+    setSelectedRelease: function(releaseCombo) {
+        releaseCombo.setLoading(true);
+        
+        var releaseName = releaseCombo.getRecord().data.Name;
+
+        this.defaultRelease = releaseName;
+        this.createChart();
+    },
+    
+    
+    launch: function() {
+        app = this;
+    },
+    
     // switch to app configuration from ui selection
     config: {
 
@@ -27,7 +64,7 @@ Ext.define('CustomApp', {
             releases                : "",
             epicIds                 : "",
             ignoreZeroValues        : true,
-            PreliminaryEstimate     : true,
+            PreliminaryEstimate     : false,
             StoryPoints             : true,
             StoryCount              : false,
             StoryPointsProjection   : true,
@@ -71,17 +108,19 @@ Ext.define('CustomApp', {
 
         _.each(values,function(value){
             value.labelWidth = 250;
-            value.labelAlign = 'left'
+            value.labelAlign = 'left';
         });
 
         return values.concat(checkValues);
     },
 
-    launch: function() {
-
-        app = this;
+    createChart: function() {
+        if (!app) {
+            app = this;
+        }
+        
         app.series = createSeriesArray();
-        app.configReleases = app.getSetting("releases");
+        app.configReleases = app.getSetting("releases") || app.defaultRelease;
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.epicIds = app.getSetting("epicIds");
 
@@ -114,6 +153,18 @@ Ext.define('CustomApp', {
                        fetch : true,
                        filters : [ { property:"Ordinal", operator:"=", value:0} ]
         });
+        configs.push({ model : "Milestone",
+                       fetch : ['Name', 'TargetDate', 'DisplayColor'],
+                       filters : [
+                                Ext.create('Rally.data.QueryFilter', { property:'Projects', operator: 'contains', value:'project/' + this.project }).or(
+                                Ext.create('Rally.data.QueryFilter', { property:'TargetProject', operator: '=', value: null })).and(
+                                    Ext.create('Rally.data.QueryFilter', { property:'TargetDate', operator: '!=', value: null }))
+                       ],
+                       sorters: [{
+                           property: 'TargetDate',
+                           direction: 'DESC'
+                       }]
+        });
 
         // get the preliminary estimate type values, and the releases.
         async.map( configs, app.wsapiQuery, function(err,results) {
@@ -121,16 +172,18 @@ Ext.define('CustomApp', {
             app.peRecords   = results[0];
             app.releases    = results[1];
             app.featureType = results[2][0].get("TypePath");
-
+            app.milestones  = results[3];
+            
             if (app.releases.length===0) {
-                app.add({html:"No Releases found with this name: "+app.configReleases});
+                app.resetChart("No Releases found with this name: "+app.configReleases);
+                
                 return;
             }
 
             configs = [
                 {
                     model  : "Iteration",
-                    fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate' ],
+                    fetch  : ['Name', 'ObjectID', 'Project', 'StartDate', 'EndDate'],
                     filters: app.createIterationFilter(app.releases)
                 }
             ];
@@ -140,7 +193,7 @@ Ext.define('CustomApp', {
 
                 app.iterations = results[0];
 
-                if (app.epicIds.split(",")[0] !=="")
+                if (app.epicIds && app.epicIds.split(",")[0] !=="")
                     app.queryEpicFeatures();
                 else
                     app.queryFeatures();
@@ -153,8 +206,6 @@ Ext.define('CustomApp', {
     trimString : function (str) {
         return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
     },
-
-
 
     // creates a filter to return all releases with a specified set of names
     createReleaseFilter : function(releaseNames) {
@@ -216,20 +267,60 @@ Ext.define('CustomApp', {
                 load : function(store, data) {
                     callback(null,data);
                 }
-            }
+            },
+            sorters: config.sorters
         });
 
     },
 
+    resetChart: function(mesg) {
+        var releaseCombo = app.down('#rallyRelease');
+        
+        releaseCombo.setLoading(false);
+        
+        var chart = app.down("#chart1");
+        if (chart !== null) {
+            chart.removeAll();
+        }
+            
+        if (mesg) {
+            Rally.ui.notify.Notifier.show({message: mesg, color: 'red'});
+        } else {
+            Rally.ui.notify.Notifier.hide();
+        }
+    },
+    
+    executeFeatureQuery: function(filter) {
+        return Ext.create('Rally.data.WsapiDataStore', {
+            autoLoad: true,
+            model : app.featureType,
+            limit : 'Infinity',
+            fetch: ['ObjectID','FormattedID' ],
+            filters: [filter],
+            listeners: {
+                load: function(store, features) {
+                    console.log("Loaded:"+features.length," Features.");
+        
+                    app.features = features;
+        
+                    if (app.features.length === 0) {
+                        app.resetChart('No features found for this release');
+                        
+                    } else {
+                        app.queryFeatureSnapshots();
+                    }
+                }
+            }
+        });        
+    },
+
     queryEpicFeatures : function() {
-
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
-
         var filter = null;
         var epicIds = app.epicIds.split(",");
 
         if (epicIds.length === 0) {
-            app.add({html:"No epic id's specified"+app.configReleases});
+            app.resetChart("No epic id's specified");
+            
             return;
         }
 
@@ -242,35 +333,14 @@ Ext.define('CustomApp', {
             filter = i === 0 ? f : filter.or(f);
         });
 
-        return Ext.create('Rally.data.WsapiDataStore', {
-            autoLoad: true,
-            model : app.featureType,
-            limit : 'Infinity',
-            fetch: ['ObjectID','FormattedID' ],
-            filters: [filter],
-            listeners: {
-                load: function(store, features) {
-                    console.log("Loaded:"+features.length," Features.");
-                    app.features = features;
-                    if (app.features.length === 0) {
-                        app.add({html:"No features for parent PortfolioItem :"+app.epicIds});
-                        return;
-                    } else {
-                    app.queryFeatureSnapshots();
-                    }
-                }
-            }
-        });        
-
+        app.executeFeatureQuery(filter);
     },
-
+    
     queryFeatures : function() {
-
-        myMask = new Ext.LoadMask(Ext.getBody(), {msg:"Please wait..."});
         var filter = null;
-
         var releaseNames = _.uniq(_.map(app.releases,function(r){ return r.get("Name");}));
-        console.log("releaseNames",releaseNames);
+        
+        console.log("releaseNames", releaseNames);
 
         _.each( releaseNames , function( release, i ) {
             var f = Ext.create('Rally.data.QueryFilter', {
@@ -281,26 +351,7 @@ Ext.define('CustomApp', {
             filter = i === 0 ? f : filter.or(f);
         });
 
-        return Ext.create('Rally.data.WsapiDataStore', {
-            autoLoad: true,
-//            model: 'PortfolioItem/Feature',
-            model : app.featureType,
-            limit : 'Infinity',
-            fetch: ['ObjectID','FormattedID' ],
-            filters: [filter],
-            listeners: {
-                load: function(store, features) {
-                    console.log("Loaded:"+features.length," Features.");
-                    app.features = features;
-                    if (app.features.length === 0) {
-                        app.add({html:"No features in release(s):"+app.configReleases});
-                        return;
-                    } else {
-                    app.queryFeatureSnapshots();
-                    }
-                }
-            }
-        });        
+        app.executeFeatureQuery(filter);
     },
     
     queryFeatureSnapshots : function () {
@@ -383,51 +434,93 @@ Ext.define('CustomApp', {
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
         this.showChart( trimHighChartsConfig(hc) );
     },
+    
+    parsePlotLines: function(seriesData, recordArray, dateField, plotLineStyle) {
+        var yLabelOffset = 0;
+        
+        var plotlines = _.map(recordArray, function(record){
+            var d = new Date(Date.parse(record.raw[dateField])).toISOString().split("T")[0];
+            
+            var color = plotLineStyle.color || record.get("DisplayColor") || "grey";
+            var labelHTML = '<span style="font-family:Rally;color:' + color + '">8</span>';
+            var hoverText = record.get("Name");
+            
+            var plotLine = {
+                dashStyle: "Dot",
+                color: color,
+                width: 1,
+                value: _.indexOf(seriesData,d)
+            };
+            
+            if (plotLineStyle.showLabel) {
+                plotLine.label = {
+                    text: labelHTML + hoverText,
+                    rotation: 0,
+                    verticalAlign: 'top',
+                    y: yLabelOffset % 2*15,
+                    x: -6,
+                    textAlign: 'left',
+                    useHTML: true
+                };
+                
+                yLabelOffset++;
+            }
+            
+            if (plotLineStyle.canRemove) {
+                var id = 'milestone-' + record.get("Name");
+                
+                plotLine.id = id;
+                plotLine.events = {
+                    click: function (e) {
+                        var plotLineId = this.id;
+                        var axis       = this.axis;
+                        axis.removePlotLine(plotLineId);
+                    },
+                    mouseover: function () {
+                        console.log('mouseover');
+                        // var plotline = this;
+                        // plotline.label.text = labelHTML + hoverText;
+                        // plotline.axis.update();
+                    },
+                    mouseout: function () {
+                        console.log('mouseout');
+                        // var plotline = this;
+                        // plotline.label.text = labelHTML;
+                        // plotline.axis.update();
+                    }
+                };
+            }
+            
+            _.each(plotLineStyle, function(value, key) {
+                plotLine[key] = value;
+            }, this);
+            
+            
+            return plotLine;
+        });
+        return plotlines;
+    },
 
-    createPlotLines : function(seriesData) {
-
+    createPlotLines: function(seriesData) {
+        var app = this;
+        
         // filter the iterations
         var start = new Date( Date.parse(seriesData[0]));
         var end   = new Date( Date.parse(seriesData[seriesData.length-1]));
         var releaseI = _.filter(this.iterations,function(i) { return i.get("EndDate") >= start && i.get("EndDate") <= end;});
         releaseI = _.uniq(releaseI,function(i) { return i.get("Name");});
-        var itPlotLines = _.map(releaseI, function(i){
-            var d = new Date(Date.parse(i.raw.EndDate)).toISOString().split("T")[0];
-            return {
-                label : i.get("Name"),
-                dashStyle : "Dot",
-                color: 'grey',
-                width: 1,
-                value: _.indexOf(seriesData,d)
-            }; 
-        });
-        // create release plot lines        
-        var rePlotLines = _.map(this.selectedReleases, function(i){
-            var d = new Date(Date.parse(i.raw.ReleaseDate)).toISOString().split("T")[0];
-            return {
-                label : i.get("Name"),
-                // dashStyle : "Dot",
-                color: 'grey',
-                width: 1,
-                value: _.indexOf(seriesData,d)
-            }; 
-        });
-        return itPlotLines.concat(rePlotLines);
-
+        
+        var itPlotLines = this.parsePlotLines(seriesData, releaseI, 'EndDate',                  { dashStyle: 'dot', color: 'grey'} );
+        var rePlotLines = this.parsePlotLines(seriesData, this.selectedReleases, 'ReleaseDate', { dashStyle: 'dot', color: 'grey'} );
+        var miPlotLines = this.parsePlotLines(seriesData, this.milestones, 'TargetDate',        { dashStyle: 'dash', width: 2, showLabel: true, canRemove: true } );
+        
+        return itPlotLines.concat(rePlotLines).concat(miPlotLines);
     },
 
     showChart : function(series) {
-
         var that = this;
 
-        // console.log("series",series);
-        // console.log("Last Accepted Projection  ",_.last(series[5].data));
-        // console.log("Last Historical Projection",_.last(series[6].data));
-        
-        var chart = this.down("#chart1");
-        myMask.hide();
-        if (chart !== null)
-            chart.removeAll();
+        app.resetChart();
             
         // create plotlines
         var plotlines = this.createPlotLines(series[0].data);
@@ -449,7 +542,7 @@ Ext.define('CustomApp', {
                 chart: {
                 },
                 title: {
-                text: 'PSI Feature Burnup ('+ app.configReleases  +')',
+                text: 'Release Burnup',
                 x: -20 //center
                 },
                 plotOptions: {
@@ -486,13 +579,21 @@ Ext.define('CustomApp', {
             }
         });
         this.add(extChart);
+        
+        app.clearLoading();
+    },
+    
+    // Even though we don't seem to set it explicitly, the chart is left with
+    // the loading mask on.  This hack turns it off on most browsers.
+    clearLoading: function() {
         chart = this.down("#chart1");
+        
         var p = Ext.get(chart.id);
         elems = p.query("div.x-mask");
+        
         _.each(elems, function(e) { e.remove(); });
         var elems = p.query("div.x-mask-msg");
         _.each(elems, function(e) { e.remove(); });
-
     }
 
 });
@@ -567,7 +668,7 @@ Ext.define('CustomApp', {
             var today = new Date();
 
             var tdi = _.findIndex(dateSeries,function(d) {
-                return ( today.setHours(0,0,0,0) === new Date(Date.parse(d)).setHours(0,0,0,0))
+                return ( today.setHours(0,0,0,0) === new Date(Date.parse(d)).setHours(0,0,0,0));
             });
 
             return tdi !== -1 ? Math.round(tdi/2) : -1;
