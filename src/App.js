@@ -86,6 +86,8 @@ Ext.define('CustomApp', {
         app.parentQueryType = app.getSetting("parentType");
         app.parentQuery = app.getSetting("parentQuery");
         app.title = "Feature Burnup";
+
+        // app.configReleases = "2015 Q1";
         
         if ( (app.configReleases==="") && (app.parentIds==="") && 
              (app.parentQueryType==="" && app.parentQuery==="") ) {
@@ -359,7 +361,8 @@ Ext.define('CustomApp', {
                 '_ValidTo' : { "$gte" : app.extent.isoStart }
             },
             autoLoad : true,
-            pageSize:1000,
+            // pageSize:1000,
+            pageSize:200,
             limit: 'Infinity',
             fetch: ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount','PercentDoneByStoryCount','RefinedEstimate'],
             hydrate: ['_TypeHierarchy']

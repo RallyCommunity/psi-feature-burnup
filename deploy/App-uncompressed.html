@@ -3,7 +3,7 @@
 <head>
     <title>psi-feature-burnup</title>
 
-    <script type="text/javascript" src="/apps/2.0rc2/sdk.js"></script>
+    <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
     <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/async/1.22/async.min.js"></script>
 
@@ -97,6 +97,8 @@ Ext.define('CustomApp', {
         app.parentQueryType = app.getSetting("parentType");
         app.parentQuery = app.getSetting("parentQuery");
         app.title = "Feature Burnup";
+
+        // app.configReleases = "2015 Q1";
         
         if ( (app.configReleases==="") && (app.parentIds==="") && 
              (app.parentQueryType==="" && app.parentQuery==="") ) {
@@ -370,7 +372,8 @@ Ext.define('CustomApp', {
                 '_ValidTo' : { "$gte" : app.extent.isoStart }
             },
             autoLoad : true,
-            pageSize:1000,
+            // pageSize:1000,
+            pageSize:200,
             limit: 'Infinity',
             fetch: ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount','PercentDoneByStoryCount','RefinedEstimate'],
             hydrate: ['_TypeHierarchy']
@@ -799,7 +802,7 @@ function snapshotQuery( config ,callback) {
         fetch   : config.fetch,
         hydrate : config.hydrate,
         autoLoad : true,
-        pageSize : 10000,
+        pageSize : 200,
         limit    : 'Infinity',
         listeners : {
             scope : this,
@@ -1228,6 +1231,7 @@ Ext.define("FeaturesForPortfolioQueryStrategy", function() {
 
         });
     </script>
+
 
 
     <style type="text/css">

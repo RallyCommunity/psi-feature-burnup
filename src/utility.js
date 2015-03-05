@@ -38,7 +38,7 @@ function snapshotQuery( config ,callback) {
         fetch   : config.fetch,
         hydrate : config.hydrate,
         autoLoad : true,
-        pageSize : 10000,
+        pageSize : 200,
         limit    : 'Infinity',
         listeners : {
             scope : this,
