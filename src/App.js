@@ -10,6 +10,7 @@ Ext.define('CustomApp', {
     config: {
 
         defaultSettings : {
+            useCurrentRelease : true,
             releases                : "",
             parentIds               : "",
             parentType              : '',
@@ -39,6 +40,11 @@ Ext.define('CustomApp', {
         });
 
         var values = [
+            {
+                name: 'useCurrentRelease',
+                xtype: 'rallycheckboxfield',
+                label: 'Checked to chart the current release'
+            },
             {
                 name: 'releases',
                 xtype: 'rallytextfield',
@@ -80,6 +86,7 @@ Ext.define('CustomApp', {
 
         app = this;
         app.series = createSeriesArray();
+        app.useCurrentRelease = app.getSetting("useCurrentRelease");
         app.configReleases = app.getSetting("releases");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.parentIds = app.getSetting("parentIds");
@@ -89,7 +96,7 @@ Ext.define('CustomApp', {
 
         // app.configReleases = "2015 Q1";
         
-        if ( (app.configReleases==="") && (app.parentIds==="") && 
+        if ( (app.useCurrentRelease===false) && (app.configReleases==="") && (app.parentIds==="") && 
              (app.parentQueryType==="" && app.parentQuery==="") ) {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
             return;
@@ -104,7 +111,7 @@ Ext.define('CustomApp', {
         // release selected page will over-ride app config
         app.configReleases = tbName !== "" ? tbName : app.configReleases;
 
-        var releaseFilter = app.createReleaseFilter(app.configReleases);
+        var releaseFilter = (!app.useCurrentRelease) ? app.createReleaseFilter(app.configReleases) : app.currentReleaseFilter();
 
         var configs = [];
         
@@ -224,6 +231,25 @@ Ext.define('CustomApp', {
         return filter;
 
     },
+
+        // creates a filter to return all releases with a specified set of names
+    currentReleaseFilter : function() {
+
+        var isoToday = Rally.util.DateTime.toIsoString(new Date(), false);
+
+        var f1 = Ext.create('Rally.data.wsapi.Filter', {
+                property : 'ReleaseDate', operator : '>=', value : isoToday }
+        );
+        var f2 = Ext.create('Rally.data.wsapi.Filter', {
+                property : 'ReleaseStartDate', operator : '<=', value : isoToday }
+        );
+        var filter = f1.and(f2);
+        console.log("Release Filter:",(filter!==null?filter.toString():"not set"));
+
+        return filter;
+
+    },
+
 
     createIterationFilter : function(releases) {
 
