@@ -326,7 +326,7 @@ Ext.define('CustomApp', {
     createChartData : function ( snapshots ) {
         
         var that = this;
-        var lumenize = window.parent.Rally.data.lookback.Lumenize;
+        var lumenize = window.Rally.data.lookback.Lumenize || window.parent.Rally.data.lookback.Lumenize;
         var snapShotData = _.map(snapshots,function(d){return d.data;});
         var extent = app.getReleaseExtent(app.releases);
 
