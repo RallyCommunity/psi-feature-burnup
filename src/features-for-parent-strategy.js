@@ -139,7 +139,8 @@ Ext.define("FeaturesForParentStrategy", function() {
                     "__At": "current"
                 },
                 autoLoad : true,
-                pageSize:1000,
+                // pageSize:1000,
+                pageSize:200,
                 limit: 'Infinity',
                 fetch: ['ObjectID','_TypeHierarchy'],
                 hydrate: ['_TypeHierarchy'],

@@ -418,7 +418,7 @@ Ext.define('CustomApp', {
     createChartData : function ( snapshots ) {
         
         var that = this;
-        var lumenize = window.parent.Rally.data.lookback.Lumenize;
+        var lumenize = window.Rally.data.lookback.Lumenize || window.parent.Rally.data.lookback.Lumenize;
         var snapShotData = _.map(snapshots,function(d){return d.data;});
         var extent = app.getReleaseExtent(app.releases);
 
@@ -1062,7 +1062,8 @@ Ext.define("FeaturesForParentStrategy", function() {
                     "__At": "current"
                 },
                 autoLoad : true,
-                pageSize:1000,
+                // pageSize:1000,
+                pageSize:200,
                 limit: 'Infinity',
                 fetch: ['ObjectID','_TypeHierarchy'],
                 hydrate: ['_TypeHierarchy'],
