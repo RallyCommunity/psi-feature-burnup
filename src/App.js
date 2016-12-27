@@ -50,7 +50,7 @@ Ext.define('CustomApp', {
                 fieldLabel: 'Releases',
                 margin: '0 0 15 50',
                 labelStyle : "width:200px;",
-                afterLabelTpl: 'Release name(s) to be included (comma seperated)',
+                afterLabelTpl: 'Release name(s) to be included (comma separated)',
                 width : 600
             },
             {
@@ -59,7 +59,7 @@ Ext.define('CustomApp', {
                 // label : "Release names to be included (comma seperated)",
                 // width : 400
                 boxLabelAlign: 'after',
-                fieldLabel: 'Milestones',
+                fieldLabel: 'Milestone',
                 margin: '0 0 15 50',
                 labelStyle : "width:200px;",
                 afterLabelTpl: '(Optional)Limit to features for this milestone',
