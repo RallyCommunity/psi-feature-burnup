@@ -322,6 +322,7 @@ Ext.define('CustomApp', {
             listeners: {
                 load: function(store, features) {
                     console.log("Loaded:"+features.length," Features.",features);
+                    console.log(_.map(features,function(f){return f.get("FormattedID")}));
                     app.features = features;
                     if (app.features.length === 0) {
                         app.add({html:"No features in release(s):"+app.configReleases});
