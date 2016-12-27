@@ -426,6 +426,10 @@ Ext.define('CustomApp', {
             }
         });
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
+
+        console.log("Expected Completed Date",myCalc.calcCompletionIndex("AcceptedPointsProjection"));
+        app.expectedCompletionDate = myCalc.calcCompletionIndex("AcceptedPointsProjection");
+
         this.showChart( trimHighChartsConfig(hc) );
     },
 
@@ -494,8 +498,12 @@ Ext.define('CustomApp', {
                 chart: {
                 },
                 title: {
-                text: 'PSI Feature Burnup ('+ app.configReleases  +')',
+                text: 'Feature Burnup ('+ app.configReleases  +')' ,
+                    
                 x: -20 //center
+                },
+                subtitle : {
+                    text: "Expected Completion Date: "+app.expectedCompletionDate
                 },
                 plotOptions: {
                     series: {

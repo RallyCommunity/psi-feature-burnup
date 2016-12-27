@@ -126,3 +126,25 @@ function trimHighChartsConfig(hc) {
 
     return hc;
 }
+
+function businessDaysFromDate(date,businessDays) {
+  var counter = 0, tmp = new Date(date);
+  while( businessDays>=0 ) {
+    tmp.setTime( date.getTime() + counter * 86400000 );
+    if(isBusinessDay (tmp)) {
+      --businessDays;
+    }
+    ++counter;
+  }
+  return tmp;
+}
+
+function isBusinessDay (date) {
+  var dayOfWeek = date.getDay();
+  if(dayOfWeek === 0 || dayOfWeek === 6) {
+    // Weekend
+    return false;
+  }
+
+  return true;
+}

@@ -437,6 +437,10 @@ Ext.define('CustomApp', {
             }
         });
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
+
+        console.log("Expected Completed Date",myCalc.calcCompletionIndex("AcceptedPointsProjection"));
+        app.expectedCompletionDate = myCalc.calcCompletionIndex("AcceptedPointsProjection");
+
         this.showChart( trimHighChartsConfig(hc) );
     },
 
@@ -505,8 +509,12 @@ Ext.define('CustomApp', {
                 chart: {
                 },
                 title: {
-                text: 'PSI Feature Burnup ('+ app.configReleases  +')',
+                text: 'Feature Burnup ('+ app.configReleases  +')' ,
+                    
                 x: -20 //center
+                },
+                subtitle : {
+                    text: "Expected Completion Date: "+app.expectedCompletionDate
                 },
                 plotOptions: {
                     series: {
@@ -629,6 +637,41 @@ Ext.define('CustomApp', {
 
             return tdi !== -1 ? Math.round(tdi/2) : -1;
 
+        },
+
+        calcCompletionIndex : function(seriesName) {
+
+            // StoryPointsProjection
+            // StoryCountProjection
+            // AcceptedPointsProjection
+            // AcceptedCountProjection
+
+            var that = this;
+
+            var scopeSeries = seriesName=="AcceptedCountProjection" ? "StoryCountProjection" : "StoryPointsProjection"
+
+            var completedSet = that.data[seriesName];
+            var scopeSet = that.data[scopeSeries]
+
+            var points = 1000;
+            console.log("completedSet",completedSet,"scopeSet",scopeSet);
+            var cProjection = [];
+            var sProjection = [];
+            var x = completedSet.length-1;           
+            do {
+                var c = (linearProject(completedSet,x));
+                var s = self.flatScopeProjection===true ? _.last(scopeSet) : (linearProject(scopeSet,x));
+                cProjection.push(c); sProjection.push(s);
+                x = x + 1;
+            } while( x < points && c < s );
+            console.log("completed index:",x);
+            console.log(sProjection);
+            console.log(cProjection);
+            if (x == points)
+                return "Undetermined"
+            else {
+                return (businessDaysFromDate(new Date(), (x-completedSet.length-1))).toLocaleDateString();
+            }
         },
 
         calcProjectionPoint : function(seriesName,projectOn,row, index, summaryMetrics, seriesData, projectFrom) {
@@ -895,6 +938,28 @@ function trimHighChartsConfig(hc) {
     });
 
     return hc;
+}
+
+function businessDaysFromDate(date,businessDays) {
+  var counter = 0, tmp = new Date(date);
+  while( businessDays>=0 ) {
+    tmp.setTime( date.getTime() + counter * 86400000 );
+    if(isBusinessDay (tmp)) {
+      --businessDays;
+    }
+    ++counter;
+  }
+  return tmp;
+}
+
+function isBusinessDay (date) {
+  var dayOfWeek = date.getDay();
+  if(dayOfWeek === 0 || dayOfWeek === 6) {
+    // Weekend
+    return false;
+  }
+
+  return true;
 }
 
 

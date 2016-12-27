@@ -76,6 +76,41 @@ Ext.define("MyBurnCalculator", function() {
 
         },
 
+        calcCompletionIndex : function(seriesName) {
+
+            // StoryPointsProjection
+            // StoryCountProjection
+            // AcceptedPointsProjection
+            // AcceptedCountProjection
+
+            var that = this;
+
+            var scopeSeries = seriesName=="AcceptedCountProjection" ? "StoryCountProjection" : "StoryPointsProjection"
+
+            var completedSet = that.data[seriesName];
+            var scopeSet = that.data[scopeSeries]
+
+            var points = 1000;
+            console.log("completedSet",completedSet,"scopeSet",scopeSet);
+            var cProjection = [];
+            var sProjection = [];
+            var x = completedSet.length-1;           
+            do {
+                var c = (linearProject(completedSet,x));
+                var s = self.flatScopeProjection===true ? _.last(scopeSet) : (linearProject(scopeSet,x));
+                cProjection.push(c); sProjection.push(s);
+                x = x + 1;
+            } while( x < points && c < s );
+            console.log("completed index:",x);
+            console.log(sProjection);
+            console.log(cProjection);
+            if (x == points)
+                return "Undetermined"
+            else {
+                return (businessDaysFromDate(new Date(), (x-completedSet.length-1))).toLocaleDateString();
+            }
+        },
+
         calcProjectionPoint : function(seriesName,projectOn,row, index, summaryMetrics, seriesData, projectFrom) {
 
             var that = this;
