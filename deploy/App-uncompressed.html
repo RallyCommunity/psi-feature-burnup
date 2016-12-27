@@ -27,6 +27,7 @@ Ext.define('CustomApp', {
             releases                : "",
             epicIds                 : "",
             ignoreZeroValues        : true,
+            flatScopeProjection     : false,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
             StoryCount              : false,
@@ -94,6 +95,16 @@ Ext.define('CustomApp', {
                 margin: '0 0 15 50',
                 labelStyle : "width:200px;",
                 afterLabelTpl: 'For projection ignore zero values'               
+            },
+            {
+                name: 'flatScopeProjection',
+                xtype: 'rallycheckboxfield',
+                // label: 'For projection ignore zero values'
+                boxLabelAlign: 'after',
+                fieldLabel: 'Flat Scope Projection',
+                margin: '0 0 15 50',
+                labelStyle : "width:200px;",
+                afterLabelTpl: 'Do not project scope values'               
             }
         ];
 
@@ -112,6 +123,7 @@ Ext.define('CustomApp', {
         app.series = createSeriesArray();
         app.configReleases = app.getSetting("releases");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
+        app.flatScopeProjection = app.getSetting("flatScopeProjection");
         app.epicIds = app.getSetting("epicIds");
         app.milestones = app.getSetting("milestones");
         console.log("milestones",app.milestones);
@@ -393,6 +405,7 @@ Ext.define('CustomApp', {
         var myCalc = Ext.create("MyBurnCalculator", {
             series : app.series,
             ignoreZeroValues : app.ignoreZeroValues,
+            flatScopeProjection : app.flatScopeProjection,
             peRecords : app.peRecords
         });
 
@@ -551,8 +564,8 @@ Ext.define('CustomApp', {
         config : {
             series : [],
             ignoreZeroValues : true,
+            flatScopeProjection : false,
             peRecords : []
-
         },
 
         constructor:function(config) {
@@ -564,6 +577,7 @@ Ext.define('CustomApp', {
         pointsOffset : [],
         countOffset : [],
         data : [],
+        lastAccepted : [],
         indexOffset : [],
 
         getMetrics: function () {
@@ -659,14 +673,21 @@ Ext.define('CustomApp', {
                 that.indexOffset[seriesName] = dx - dy;
 
                 // calculate an offset between the projected value and the actual accepted values.
-                var lastAccepted = that.data[seriesName][that.data[seriesName].length-1];
+                that.lastAccepted[seriesName] = that.data[seriesName][that.data[seriesName].length-1];
+                console.log("lastAccepted",that.lastAccepted[seriesName],seriesName);
                 var lastProjected = linearProject( that.data[seriesName], that.data[seriesName].length-1);
                 // if (seriesName==="Story Points")
                 //     console.log("la",lastAccepted,"lp",lastProjected);
-                that.pointsOffset[seriesName] = lastAccepted-lastProjected;
+                that.pointsOffset[seriesName] = that.lastAccepted[seriesName]-lastProjected;
             }
             index = index - that.indexOffset[seriesName];
             var y = linearProject( that.data[seriesName], index) + that.pointsOffset[seriesName];
+            // use the last value if the flat scope projection setting is true
+            // console.log("flatScopeProjection",self.flatScopeProjection,seriesName,that.lastAccepted[seriesName]);
+            if (self.flatScopeProjection===true) {
+                if (seriesName=="StoryPointsProjection" || seriesName=="StoryCountProjection")
+                    y = that.lastAccepted[seriesName];
+            }
             return Math.round(y * 100) / 100;
         },
 

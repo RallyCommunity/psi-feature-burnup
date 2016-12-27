@@ -16,6 +16,7 @@ Ext.define('CustomApp', {
             releases                : "",
             epicIds                 : "",
             ignoreZeroValues        : true,
+            flatScopeProjection     : false,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
             StoryCount              : false,
@@ -83,6 +84,16 @@ Ext.define('CustomApp', {
                 margin: '0 0 15 50',
                 labelStyle : "width:200px;",
                 afterLabelTpl: 'For projection ignore zero values'               
+            },
+            {
+                name: 'flatScopeProjection',
+                xtype: 'rallycheckboxfield',
+                // label: 'For projection ignore zero values'
+                boxLabelAlign: 'after',
+                fieldLabel: 'Flat Scope Projection',
+                margin: '0 0 15 50',
+                labelStyle : "width:200px;",
+                afterLabelTpl: 'Do not project scope values'               
             }
         ];
 
@@ -101,6 +112,7 @@ Ext.define('CustomApp', {
         app.series = createSeriesArray();
         app.configReleases = app.getSetting("releases");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
+        app.flatScopeProjection = app.getSetting("flatScopeProjection");
         app.epicIds = app.getSetting("epicIds");
         app.milestones = app.getSetting("milestones");
         console.log("milestones",app.milestones);
@@ -382,6 +394,7 @@ Ext.define('CustomApp', {
         var myCalc = Ext.create("MyBurnCalculator", {
             series : app.series,
             ignoreZeroValues : app.ignoreZeroValues,
+            flatScopeProjection : app.flatScopeProjection,
             peRecords : app.peRecords
         });
 

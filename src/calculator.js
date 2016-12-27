@@ -9,8 +9,8 @@ Ext.define("MyBurnCalculator", function() {
         config : {
             series : [],
             ignoreZeroValues : true,
+            flatScopeProjection : false,
             peRecords : []
-
         },
 
         constructor:function(config) {
@@ -22,6 +22,7 @@ Ext.define("MyBurnCalculator", function() {
         pointsOffset : [],
         countOffset : [],
         data : [],
+        lastAccepted : [],
         indexOffset : [],
 
         getMetrics: function () {
@@ -117,14 +118,21 @@ Ext.define("MyBurnCalculator", function() {
                 that.indexOffset[seriesName] = dx - dy;
 
                 // calculate an offset between the projected value and the actual accepted values.
-                var lastAccepted = that.data[seriesName][that.data[seriesName].length-1];
+                that.lastAccepted[seriesName] = that.data[seriesName][that.data[seriesName].length-1];
+                console.log("lastAccepted",that.lastAccepted[seriesName],seriesName);
                 var lastProjected = linearProject( that.data[seriesName], that.data[seriesName].length-1);
                 // if (seriesName==="Story Points")
                 //     console.log("la",lastAccepted,"lp",lastProjected);
-                that.pointsOffset[seriesName] = lastAccepted-lastProjected;
+                that.pointsOffset[seriesName] = that.lastAccepted[seriesName]-lastProjected;
             }
             index = index - that.indexOffset[seriesName];
             var y = linearProject( that.data[seriesName], index) + that.pointsOffset[seriesName];
+            // use the last value if the flat scope projection setting is true
+            // console.log("flatScopeProjection",self.flatScopeProjection,seriesName,that.lastAccepted[seriesName]);
+            if (self.flatScopeProjection===true) {
+                if (seriesName=="StoryPointsProjection" || seriesName=="StoryCountProjection")
+                    y = that.lastAccepted[seriesName];
+            }
             return Math.round(y * 100) / 100;
         },
 
