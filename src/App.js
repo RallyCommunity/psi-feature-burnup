@@ -43,20 +43,49 @@ Ext.define('CustomApp', {
             {
                 name: 'releases',
                 xtype: 'rallytextfield',
-                label : "Release names to be included (comma seperated)"
+                // label : "Release names to be included (comma seperated)",
+                // width : 400
+                boxLabelAlign: 'after',
+                fieldLabel: 'Releases',
+                margin: '0 0 15 50',
+                labelStyle : "width:200px;",
+                afterLabelTpl: 'Release name(s) to be included (comma seperated)',
+                width : 600
+            },
+            {
+                name: 'milestones',
+                xtype: 'rallytextfield',
+                // label : "Release names to be included (comma seperated)",
+                // width : 400
+                boxLabelAlign: 'after',
+                fieldLabel: 'Milestones',
+                margin: '0 0 15 50',
+                labelStyle : "width:200px;",
+                afterLabelTpl: '(Optional)Limit to features for this milestone',
+                width : 600
             },
             {
                 name: 'epicIds',
                 xtype: 'rallytextfield',
-                label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
+//                label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
+                boxLabelAlign: 'after',
+                fieldLabel: 'Epics',
+                margin: '0 0 15 50',
+                labelStyle : "width:200px;",
+                afterLabelTpl: '(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by'
             },
-
             {
                 name: 'ignoreZeroValues',
                 xtype: 'rallycheckboxfield',
-                label: 'For projection ignore zero values'
+                // label: 'For projection ignore zero values'
+                boxLabelAlign: 'after',
+                fieldLabel: 'ignoreZeroValues',
+                margin: '0 0 15 50',
+                labelStyle : "width:200px;",
+                afterLabelTpl: 'For projection ignore zero values'               
             }
         ];
+
 
         _.each(values,function(value){
             value.labelWidth = 250;
@@ -73,6 +102,8 @@ Ext.define('CustomApp', {
         app.configReleases = app.getSetting("releases");
         app.ignoreZeroValues = app.getSetting("ignoreZeroValues");
         app.epicIds = app.getSetting("epicIds");
+        app.milestones = app.getSetting("milestones");
+        console.log("milestones",app.milestones);
 
         if (app.configReleases==="") {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
@@ -270,6 +301,17 @@ Ext.define('CustomApp', {
             filter = i === 0 ? f : filter.or(f);
         });
 
+        // add filter for milestone.
+        if (!_.isNull(app.milestones) && app.milestones != "") {
+            var f = Ext.create('Rally.data.QueryFilter', {
+                property: 'Milestones.Name',
+                operator: '=',
+                value: app.milestones
+            });
+            filter = filter.and(f);
+        }
+        console.log("Filter:",filter.toString());
+
         return Ext.create('Rally.data.WsapiDataStore', {
             autoLoad: true,
 //            model: 'PortfolioItem/Feature',
@@ -279,7 +321,7 @@ Ext.define('CustomApp', {
             filters: [filter],
             listeners: {
                 load: function(store, features) {
-                    console.log("Loaded:"+features.length," Features.");
+                    console.log("Loaded:"+features.length," Features.",features);
                     app.features = features;
                     if (app.features.length === 0) {
                         app.add({html:"No features in release(s):"+app.configReleases});
