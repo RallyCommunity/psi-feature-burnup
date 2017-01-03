@@ -53,6 +53,18 @@ Ext.define('CustomApp', {
                 afterLabelTpl: 'Release name(s) to be included (comma separated)',
                 width : 600
             },
+            // {
+            //     name: 'milestone_picker',
+            //     xtype: 'rallymilestonepicker',
+            //     // label : "Release names to be included (comma seperated)",
+            //     // width : 400
+            //     boxLabelAlign: 'after',
+            //     fieldLabel: 'Milestone',
+            //     margin: '0 0 15 50',
+            //     labelStyle : "width:200px;",
+            //     afterLabelTpl: '(Optional)Limit to features for this milestone',
+            //     width : 600
+            // },
             {
                 name: 'milestones',
                 xtype: 'rallytextfield',

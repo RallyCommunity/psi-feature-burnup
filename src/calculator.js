@@ -83,27 +83,42 @@ Ext.define("MyBurnCalculator", function() {
             // AcceptedPointsProjection
             // AcceptedCountProjection
 
+            var points = 1000;
+
+            var createProjectionArray = function(data,flatValue) {
+                var x = 0;
+                var arr = [];
+                do {
+                    if (_.isUndefined(flatValue) || _.isNull(flatValue))
+                        arr.push(linearProject(data, x))
+                    else
+                        arr.push(flatValue);
+                    x = x + 1;
+                } while(x < points)
+                // adjust by last point
+                var dy = _.last(data) - arr[(data.length-1)];
+                _.each(arr,function(value,i) { 
+                    arr[i] = value + dy;
+                })
+                return arr;
+            }
+
             var that = this;
 
             var scopeSeries = seriesName=="AcceptedCountProjection" ? "StoryCountProjection" : "StoryPointsProjection"
 
             var completedSet = that.data[seriesName];
             var scopeSet = that.data[scopeSeries]
-
-            var points = 1000;
-            console.log("completedSet",completedSet,"scopeSet",scopeSet);
-            var cProjection = [];
-            var sProjection = [];
-            var x = completedSet.length-1;           
+            
+            var cProjection = createProjectionArray(completedSet);
+            var sProjection = createProjectionArray(scopeSet, self.flatScopeProjection===true 
+                ? _.last(scopeSet) 
+                : null);
+            var x = completedSet.length-1;
             do {
-                var c = (linearProject(completedSet,x));
-                var s = self.flatScopeProjection===true ? _.last(scopeSet) : (linearProject(scopeSet,x));
-                cProjection.push(c); sProjection.push(s);
                 x = x + 1;
-            } while( x < points && c < s );
+            } while( x < points && cProjection[x] < sProjection[x] );
             console.log("completed index:",x);
-            console.log(sProjection);
-            console.log(cProjection);
             if (x == points)
                 return "Undetermined"
             else {
