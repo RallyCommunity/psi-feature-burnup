@@ -17,6 +17,7 @@ Ext.define('CustomApp', {
             epicIds                 : "",
             ignoreZeroValues        : true,
             flatScopeProjection     : false,
+            completionDateScope     : true,
             PreliminaryEstimate     : true,
             StoryPoints             : true,
             StoryCount              : false,
@@ -35,6 +36,11 @@ Ext.define('CustomApp', {
     },
 
     getSettingsFields: function() {
+
+        var scopeTypeStore = new Ext.data.ArrayStore({
+            fields: ['scope'],
+            data : [['Count'],['Points']]
+        });  
 
         var checkValues = _.map(createSeriesArray(),function(s) {
             return { name : s.name, xtype : 'rallycheckboxfield', label : s.description};
@@ -106,6 +112,16 @@ Ext.define('CustomApp', {
                 margin: '0 0 15 50',
                 labelStyle : "width:200px;",
                 afterLabelTpl: 'Do not project scope values'               
+            },
+            {
+                name: 'completionDateScope',
+                xtype: 'rallycheckboxfield',
+                // label: 'For projection ignore zero values'
+                boxLabelAlign: 'after',
+                fieldLabel: 'Use count for Expected Completion Date',
+                margin: '0 0 15 50',
+                labelStyle : "width:300px;",
+                afterLabelTpl: '(otherwise based on points)'               
             }
         ];
 
@@ -127,6 +143,7 @@ Ext.define('CustomApp', {
         app.flatScopeProjection = app.getSetting("flatScopeProjection");
         app.epicIds = app.getSetting("epicIds");
         app.milestones = app.getSetting("milestones");
+        app.completionDateScope = app.getSetting("completionDateScope")
         console.log("milestones",app.milestones);
 
         if (app.configReleases==="") {
@@ -440,7 +457,10 @@ Ext.define('CustomApp', {
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
 
         console.log("Expected Completed Date",myCalc.calcCompletionIndex("AcceptedPointsProjection"));
-        app.expectedCompletionDate = myCalc.calcCompletionIndex("AcceptedPointsProjection");
+        app.expectedCompletionDate = myCalc.calcCompletionIndex(
+            app.completionDateScope == true ?
+                "AcceptedCountProjection" : "AcceptedPointsProjection" 
+            );
 
         this.showChart( trimHighChartsConfig(hc) );
     },
