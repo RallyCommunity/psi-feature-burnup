@@ -111,7 +111,6 @@ function trimHighChartsConfig(hc) {
         }
         // for projection null values before today.
         if (series.name.indexOf("Projection")!==-1) {
-            console.log("projection series",series);
             _.each( series.data, function( point , x ){
                 if ( Date.parse(hc[0].data[x]) < today ) {
                     series.data[x] = null;
@@ -147,4 +146,58 @@ function isBusinessDay (date) {
   }
 
   return true;
+}
+
+
+function line_intersect (seg1,seg2)
+{
+
+    var x1 = seg1.x1; var y1 = seg1.y1; var x2 = seg1.x2; var y2 = seg1.y2;
+    var x3 = seg2.x1; var y3 = seg2.y1; var x4 = seg2.x2; var y4 = seg2.y2;
+
+    var ua, ub, denom = (y4 - y3)*(x2 - x1) - (x4 - x3)*(y2 - y1);
+    if (denom == 0) {
+        return null;
+    }
+    ua = ((x4 - x3)*(y1 - y3) - (y4 - y3)*(x1 - x3))/denom;
+    ub = ((x2 - x1)*(y1 - y3) - (y2 - y1)*(x1 - x3))/denom;
+    return {
+        x: x1 + ua*(x2 - x1),
+        y: y1 + ua*(y2 - y1),
+        seg1: ua >= 0 && ua <= 1,
+        seg2: ub >= 0 && ua <= 1
+    };
+}
+
+function calcCompletionIndex1 (series,pointsOrCount) {
+
+        var that = this;
+        var scopeProjection = pointsOrCount=="Points" ? "Scope Projection" : "Scope Count Projection"
+        var completedProjection = pointsOrCount=="Points" ? "Accepted Projection" : "Accepted Count Projection"
+
+        var lineSegment = function(data) {
+            var x1 = _.findIndex(data,function(d){return !_.isNull(d);});
+            var y1 = data[x1];
+            var x2 = data.length-1;
+            var y2 = data[x2];
+            return {x1:x1,y1:y1,x2:x2,y2:y2};
+        }
+
+        var scopeProjectionData = _.find(series,function(s) { return s.name == scopeProjection;});
+        var completedProjectionData = _.find(series,function(s) { return s.name == completedProjection;});
+        var intersect = line_intersect(
+            lineSegment(scopeProjectionData.data),
+            lineSegment(completedProjectionData.data));
+
+        var completionIndex = Math.floor(intersect.x);
+
+        if (completionIndex <= scopeProjectionData.data.length-1)
+            return series[0].data[completionIndex]; // date label
+        else {
+            // convert last chart date label to a date, and add the business days.
+            var dt = new Date(_.last(series[0].data))
+            var futureDays = (completionIndex-scopeProjectionData.data.length-1);
+            var futureDt = businessDaysFromDate(dt,futureDays);
+            return futureDt.toLocaleDateString();;
+        }
 }

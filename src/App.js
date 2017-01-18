@@ -144,7 +144,6 @@ Ext.define('CustomApp', {
         app.epicIds = app.getSetting("epicIds");
         app.milestones = app.getSetting("milestones");
         app.completionDateScope = app.getSetting("completionDateScope")
-        console.log("milestones",app.milestones);
 
         if (app.configReleases==="") {
             this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
@@ -230,7 +229,6 @@ Ext.define('CustomApp', {
                 filter = (i===0) ? f : filter.or(f);
             }
         });
-
         console.log("Release Filter:",filter.toString());
         return filter;
 
@@ -381,7 +379,6 @@ Ext.define('CustomApp', {
         var ids = _.pluck(app.features, function(feature) { return feature.get("ObjectID");} );
         // var pes = _.pluck(app.features, function(feature) { return feature.get("PreliminaryEstimate");} );
         var extent = app.getReleaseExtent(app.releases);
-        // console.log("ids",ids,pes);
 
         var storeConfig = {
             find : {
@@ -456,12 +453,6 @@ Ext.define('CustomApp', {
         });
         var hc = lumenize.arrayOfMaps_To_HighChartsSeries(calculator.getResults().seriesData, hcConfig);
 
-        console.log("Expected Completed Date",myCalc.calcCompletionIndex("AcceptedPointsProjection"));
-        app.expectedCompletionDate = myCalc.calcCompletionIndex(
-            app.completionDateScope == true ?
-                "AcceptedCountProjection" : "AcceptedPointsProjection" 
-            );
-
         this.showChart( trimHighChartsConfig(hc) );
     },
 
@@ -497,13 +488,14 @@ Ext.define('CustomApp', {
 
     },
 
+
     showChart : function(series) {
 
         var that = this;
 
-        // console.log("series",series);
-        // console.log("Last Accepted Projection  ",_.last(series[5].data));
-        // console.log("Last Historical Projection",_.last(series[6].data));
+        app.expectedCompletionDate = calcCompletionIndex1(series,
+            app.completionDateScope == true ? "Count" : "Points");
+        console.log("Expected Completed Date1",app.expectedCompletionDate);
         
         var chart = this.down("#chart1");
         myMask.hide();
