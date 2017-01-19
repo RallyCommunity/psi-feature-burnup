@@ -172,7 +172,7 @@ function line_intersect (seg1,seg2)
 function calcCompletionIndex1 (series,pointsOrCount) {
 
         var that = this;
-        var scopeProjection = pointsOrCount=="Points" ? "Scope Projection" : "Scope Count Projection"
+        var scopeProjection = pointsOrCount=="Points" ? "Scope Projection" : "Count Projection"
         var completedProjection = pointsOrCount=="Points" ? "Accepted Projection" : "Accepted Count Projection"
 
         var lineSegment = function(data) {
@@ -195,6 +195,7 @@ function calcCompletionIndex1 (series,pointsOrCount) {
             return series[0].data[completionIndex]; // date label
         else {
             // convert last chart date label to a date, and add the business days.
+            console.log("series",series);
             var dt = new Date(_.last(series[0].data))
             var futureDays = (completionIndex-scopeProjectionData.data.length-1);
             var futureDt = businessDaysFromDate(dt,futureDays);

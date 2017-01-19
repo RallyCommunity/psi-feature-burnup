@@ -663,99 +663,6 @@ Ext.define('CustomApp', {
 
         },
 
-        line_intersect : function(seg1,seg2)
-        {
-            console.log("seg1",seg1);
-            console.log("seg2",seg2);
-
-            var x1 = seg1.x1; var y1 = seg1.y1; var x2 = seg1.x2; var y2 = seg1.y2;
-            var x3 = seg2.x1; var y3 = seg2.y1; var x4 = seg2.x2; var y4 = seg2.y2;
-
-            var ua, ub, denom = (y4 - y3)*(x2 - x1) - (x4 - x3)*(y2 - y1);
-            if (denom == 0) {
-                return null;
-            }
-            ua = ((x4 - x3)*(y1 - y3) - (y4 - y3)*(x1 - x3))/denom;
-            ub = ((x2 - x1)*(y1 - y3) - (y2 - y1)*(x1 - x3))/denom;
-            return {
-                x: x1 + ua*(x2 - x1),
-                y: y1 + ua*(y2 - y1),
-                seg1: ua >= 0 && ua <= 1,
-                seg2: ub >= 0 && ua <= 1
-            };
-        },
-
-        calcCompletionIndex1 : function(pointsOrCount) {
-
-            var that = this;
-            var scopeProjection = pointsOrCount=="Count" ? "StoryCountProjection" : "StoryPointsProjection"
-            var completedProjection = pointsOrCount=="Count" ? "AcceptedCountProjection" : "AcceptedPointsProjection"
-
-            var lineSegment = function(series) {
-                var data = that.data[series];
-                console.log("data series",data);
-                var x1 = _.findIndex(data,function(d){return !_.isNull(d);});
-                var y1 = data[x1];
-                var x2 = data.length-1;
-                var y2 = data[x2];
-                return {x1:x1,y1:y1,x2:x2,y2:y2};
-            }
-
-            return self.line_intersect(
-                lineSegment(scopeProjection),
-                lineSegment(completedProjection));
-
-        },
-
-        calcCompletionIndex : function(seriesName) {
-
-            // StoryPointsProjection
-            // StoryCountProjection
-            // AcceptedPointsProjection
-            // AcceptedCountProjection
-
-            var points = 1000;
-
-            var createProjectionArray = function(data,flatValue) {
-                var x = 0;
-                var arr = [];
-                do {
-                    if (_.isUndefined(flatValue) || _.isNull(flatValue))
-                        arr.push(linearProject(data, x))
-                    else
-                        arr.push(flatValue);
-                    x = x + 1;
-                } while(x < points)
-                // adjust by last point
-                var dy = _.last(data) - arr[(data.length-1)];
-                _.each(arr,function(value,i) { 
-                    arr[i] = value + dy;
-                })
-                return arr;
-            }
-
-            var that = this;
-
-            var scopeSeries = seriesName=="AcceptedCountProjection" ? "StoryCountProjection" : "StoryPointsProjection"
-
-            var completedSet = that.data[seriesName];
-            var scopeSet = that.data[scopeSeries]
-            
-            var cProjection = createProjectionArray(completedSet);
-            var sProjection = createProjectionArray(scopeSet, self.flatScopeProjection===true 
-                ? _.last(scopeSet) 
-                : null);
-            var x = completedSet.length-1;
-            do {
-                x = x + 1;
-            } while( x < points && cProjection[x] < sProjection[x] );
-            console.log("completed index:",x);
-            if (x == points)
-                return "Undetermined"
-            else {
-                return (businessDaysFromDate(new Date(), (x-completedSet.length-1))).toLocaleDateString();
-            }
-        },
 
         calcProjectionPoint : function(seriesName,projectOn,row, index, summaryMetrics, seriesData, projectFrom) {
 
@@ -1068,7 +975,7 @@ function line_intersect (seg1,seg2)
 function calcCompletionIndex1 (series,pointsOrCount) {
 
         var that = this;
-        var scopeProjection = pointsOrCount=="Points" ? "Scope Projection" : "Scope Count Projection"
+        var scopeProjection = pointsOrCount=="Points" ? "Scope Projection" : "Count Projection"
         var completedProjection = pointsOrCount=="Points" ? "Accepted Projection" : "Accepted Count Projection"
 
         var lineSegment = function(data) {
@@ -1091,6 +998,7 @@ function calcCompletionIndex1 (series,pointsOrCount) {
             return series[0].data[completionIndex]; // date label
         else {
             // convert last chart date label to a date, and add the business days.
+            console.log("series",series);
             var dt = new Date(_.last(series[0].data))
             var futureDays = (completionIndex-scopeProjectionData.data.length-1);
             var futureDt = businessDaysFromDate(dt,futureDays);
