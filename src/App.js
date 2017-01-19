@@ -146,7 +146,7 @@ Ext.define('CustomApp', {
         app.completionDateScope = app.getSetting("completionDateScope")
 
         if (app.configReleases==="") {
-            this.add({html:"Please Configure this app by selecting Edit App Settings from Configure (gear) Menu"});
+            this.add({html:"Please Configure this app by selecting 'Edit App Settings' menu item from Configure (gear icon) Menu (top right)"});
             return;
         }
 
