@@ -84,6 +84,7 @@ Ext.define("MyBurnCalculator", function() {
             // for first point we save the data set on which we are going to do the linear projection on
             // we also optionally filter out values.
             if (index === 0) {
+                console.log("Projection:",seriesName)
                 datesData = _.pluck(seriesData,"label");
                 var mid = self.getMidPointIndex(datesData);
                 var today = new Date();
@@ -91,6 +92,7 @@ Ext.define("MyBurnCalculator", function() {
 
                 // that.data[seriesName] = _.pluck(seriesData,seriesName);
                 that.data[seriesName] = _.pluck(seriesData,projectOn);
+                console.log("Projection Data:",that.data[seriesName]);
                 // if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // filter to just values before today
                 that.data[seriesName] = _.filter(
@@ -108,7 +110,7 @@ Ext.define("MyBurnCalculator", function() {
                 if (self.ignoreZeroValues===true) {
                     that.data[seriesName] = _.filter(
                         that.data[seriesName], function(d,i) {
-                            return d !== 0;
+                            return i != 0 ? (d !== 0) : true;
                         }
                     );
                 }
@@ -134,7 +136,8 @@ Ext.define("MyBurnCalculator", function() {
                 if (seriesName=="StoryPointsProjection" || seriesName=="StoryCountProjection")
                     y = that.lastAccepted[seriesName];
             }
-            return Math.round(y * 100) / 100;
+            y = Math.round(y * 100) / 100;
+            return _.isNaN(y) ? null : y;
         },
 
         getDerivedFieldsAfterSummary : function () {

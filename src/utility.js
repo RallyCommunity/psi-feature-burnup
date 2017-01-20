@@ -183,13 +183,22 @@ function calcCompletionIndex1 (series,pointsOrCount) {
             return {x1:x1,y1:y1,x2:x2,y2:y2};
         }
 
+        console.log("series",series);
+        console.log(scopeProjection,completedProjection);
         var scopeProjectionData = _.find(series,function(s) { return s.name == scopeProjection;});
         var completedProjectionData = _.find(series,function(s) { return s.name == completedProjection;});
+        console.log(scopeProjectionData);
+        console.log(completedProjectionData);
         var intersect = line_intersect(
             lineSegment(scopeProjectionData.data),
             lineSegment(completedProjectionData.data));
 
+        console.log("intersect",intersect);
         var completionIndex = Math.floor(intersect.x);
+
+        if (_.isNaN(intersect.x) || (intersect.x < 0)) {
+            return "Unknown"
+        }
 
         if (completionIndex <= scopeProjectionData.data.length-1)
             return series[0].data[completionIndex]; // date label

@@ -671,6 +671,7 @@ Ext.define('CustomApp', {
             // for first point we save the data set on which we are going to do the linear projection on
             // we also optionally filter out values.
             if (index === 0) {
+                console.log("Projection:",seriesName)
                 datesData = _.pluck(seriesData,"label");
                 var mid = self.getMidPointIndex(datesData);
                 var today = new Date();
@@ -678,6 +679,7 @@ Ext.define('CustomApp', {
 
                 // that.data[seriesName] = _.pluck(seriesData,seriesName);
                 that.data[seriesName] = _.pluck(seriesData,projectOn);
+                console.log("Projection Data:",that.data[seriesName]);
                 // if (seriesName==="Story Points") console.log(that.data[seriesName].length);
                 // filter to just values before today
                 that.data[seriesName] = _.filter(
@@ -695,7 +697,7 @@ Ext.define('CustomApp', {
                 if (self.ignoreZeroValues===true) {
                     that.data[seriesName] = _.filter(
                         that.data[seriesName], function(d,i) {
-                            return d !== 0;
+                            return i != 0 ? (d !== 0) : true;
                         }
                     );
                 }
@@ -721,7 +723,8 @@ Ext.define('CustomApp', {
                 if (seriesName=="StoryPointsProjection" || seriesName=="StoryCountProjection")
                     y = that.lastAccepted[seriesName];
             }
-            return Math.round(y * 100) / 100;
+            y = Math.round(y * 100) / 100;
+            return _.isNaN(y) ? null : y;
         },
 
         getDerivedFieldsAfterSummary : function () {
@@ -986,13 +989,22 @@ function calcCompletionIndex1 (series,pointsOrCount) {
             return {x1:x1,y1:y1,x2:x2,y2:y2};
         }
 
+        console.log("series",series);
+        console.log(scopeProjection,completedProjection);
         var scopeProjectionData = _.find(series,function(s) { return s.name == scopeProjection;});
         var completedProjectionData = _.find(series,function(s) { return s.name == completedProjection;});
+        console.log(scopeProjectionData);
+        console.log(completedProjectionData);
         var intersect = line_intersect(
             lineSegment(scopeProjectionData.data),
             lineSegment(completedProjectionData.data));
 
+        console.log("intersect",intersect);
         var completionIndex = Math.floor(intersect.x);
+
+        if (_.isNaN(intersect.x) || (intersect.x < 0)) {
+            return "Unknown"
+        }
 
         if (completionIndex <= scopeProjectionData.data.length-1)
             return series[0].data[completionIndex]; // date label
