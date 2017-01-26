@@ -18,6 +18,8 @@ Ext.define('CustomApp', {
             ignoreZeroValues        : true,
             flatScopeProjection     : false,
             completionDateScope     : false,
+            featureCompleteByState  : false,
+            featureCompleteState    : "",
             PreliminaryEstimate     : true,
             StoryPoints             : true,
             StoryCount              : false,
@@ -31,6 +33,7 @@ Ext.define('CustomApp', {
             FeatureCountCompleted   : false,
             HistoricalProjection    : false,
             RefinedEstimate : false
+
         }
 
     },
@@ -47,6 +50,7 @@ Ext.define('CustomApp', {
         });
 
         var values = [
+
             {
                 name: 'releases',
                 xtype: 'rallytextfield',
@@ -59,18 +63,6 @@ Ext.define('CustomApp', {
                 afterLabelTpl: 'Release name(s) to be included (comma separated)',
                 width : 600
             },
-            // {
-            //     name: 'milestone_picker',
-            //     xtype: 'rallymilestonepicker',
-            //     // label : "Release names to be included (comma seperated)",
-            //     // width : 400
-            //     boxLabelAlign: 'after',
-            //     fieldLabel: 'Milestone',
-            //     margin: '0 0 15 50',
-            //     labelStyle : "width:200px;",
-            //     afterLabelTpl: '(Optional)Limit to features for this milestone',
-            //     width : 600
-            // },
             {
                 name: 'milestones',
                 xtype: 'rallytextfield',
@@ -122,7 +114,31 @@ Ext.define('CustomApp', {
                 margin: '0 0 15 50',
                 labelStyle : "width:300px;",
                 afterLabelTpl: '(otherwise based on points)'               
-            }
+            },
+
+            // featureCompleteByState  : false,
+            // featureCompleteState    : "",
+            {
+                name: 'featureCompleteByState',
+                xtype: 'rallycheckboxfield',
+                // label: 'For projection ignore zero values'
+                boxLabelAlign: 'after',
+                fieldLabel: 'True if feature completed is based on feature state',
+                margin: '0 0 15 50',
+                labelStyle : "width:300px;",
+                afterLabelTpl: '(otherwise based on 100% story completion)'               
+            },
+            {
+                name: 'featureCompleteState',
+                xtype: 'rallytextfield',
+//                label : "(Optional) List of Parent PortfolioItem (Epics) ids to filter Features by"
+                boxLabelAlign: 'after',
+                fieldLabel: 'Only used if Feature Complete By State is set to true (above)',
+                margin: '0 0 15 50',
+                labelStyle : "width:200px;",
+                afterLabelTpl: '(Optional) Feature state for completed features'
+            },
+
         ];
 
 
@@ -144,6 +160,11 @@ Ext.define('CustomApp', {
         app.epicIds = app.getSetting("epicIds");
         app.milestones = app.getSetting("milestones");
         app.completionDateScope = app.getSetting("completionDateScope")
+        // featureCompleteByState  : false,
+        // featureCompleteState    : "",
+        app.featureCompleteByState = app.getSetting("featureCompleteByState");
+        app.featureCompleteState = app.getSetting("featureCompleteState");
+
 
         if (app.configReleases==="") {
             this.add({html:"Please Configure this app by selecting 'Edit App Settings' menu item from Configure (gear icon) Menu (top right)"});
@@ -389,8 +410,8 @@ Ext.define('CustomApp', {
             autoLoad : true,
             pageSize:1000,
             limit: 'Infinity',
-            fetch: ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount','PercentDoneByStoryCount','RefinedEstimate'],
-            hydrate: ['_TypeHierarchy']
+            fetch: ['_UnformattedID','ObjectID','_TypeHierarchy','PreliminaryEstimate', 'LeafStoryCount','LeafStoryPlanEstimateTotal','AcceptedLeafStoryPlanEstimateTotal','AcceptedLeafStoryCount','PercentDoneByStoryCount','RefinedEstimate','State'],
+            hydrate: ['_TypeHierarchy','State']
         };
 
         storeConfig.listeners = {
@@ -421,7 +442,9 @@ Ext.define('CustomApp', {
             series : app.series,
             ignoreZeroValues : app.ignoreZeroValues,
             flatScopeProjection : app.flatScopeProjection,
-            peRecords : app.peRecords
+            peRecords : app.peRecords,
+            featureCompleteByState : app.featureCompleteByState,
+            featureCompleteState : app.featureCompleteState
         });
 
         // calculator config
@@ -562,6 +585,7 @@ Ext.define('CustomApp', {
                 legend: { align: 'center', verticalAlign: 'bottom' }
             }
         });
+        console.log("adding chart ",extChart);
         this.add(extChart);
         chart = this.down("#chart1");
         var p = Ext.get(chart.id);

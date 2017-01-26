@@ -10,7 +10,9 @@ Ext.define("MyBurnCalculator", function() {
             series : [],
             ignoreZeroValues : true,
             flatScopeProjection : false,
-            peRecords : []
+            peRecords : [],
+            featureCompleteByState : false,
+            featureCompleteState : ""
         },
 
         constructor:function(config) {
@@ -58,7 +60,11 @@ Ext.define("MyBurnCalculator", function() {
                 {
                     as: 'Completed',
                     f:  function(row) {
-                    return row.PercentDoneByStoryCount == 1 ? 1 : 0;
+                        if (!self.featureCompleteByState)
+                            return row.PercentDoneByStoryCount == 1 ? 1 : 0;
+                        else
+                            // console.log("state","'"+row['State']+"'",self.featureCompleteState);
+                            return row['State']==self.featureCompleteState;
                     }
                 }
             ];
