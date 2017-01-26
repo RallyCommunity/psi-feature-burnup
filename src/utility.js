@@ -69,6 +69,7 @@ function createSeriesArray() {
         { name : "AcceptedCountProjection",  description : "Accepted Count Projection", projectOn : "Accepted Count",   color : "Green" },
         { name : "FeatureCount",             description : "Feature Count",          field : "ObjectID",                display : "column", f : "count", color : "Blue" },
         { name : "FeatureCountCompleted",    description : "Completed Feature Count",field : "Completed",               display : "column", f : "sum", color : "Green" },
+        { name : "FeatureCountProjection",   description : "Feature Count Projection", projectOn : "Completed Feature Count",   color : "Green" },
         { name : "HistoricalProjection",     description : "Historical Trend Projection",projectOn : "Accepted Points", color : "LightGray", hidden : true, projectFrom : "mid" },
         { name : "RefinedEstimate" ,         description : "Refined Feature Estimate", field : "RefinedEstimate", display : "line", f : "sum", color : "DarkBlue" }
     ];
