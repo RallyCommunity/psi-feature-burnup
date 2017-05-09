@@ -188,6 +188,9 @@ function calcCompletionIndex1 (series,pointsOrCount) {
         console.log(scopeProjection,completedProjection);
         var scopeProjectionData = _.find(series,function(s) { return s.name == scopeProjection;});
         var completedProjectionData = _.find(series,function(s) { return s.name == completedProjection;});
+        if (!scopeProjectionData || !completedProjectionData)
+            return "No Projection Data";
+
         console.log(scopeProjectionData);
         console.log(completedProjectionData);
         var intersect = line_intersect(
